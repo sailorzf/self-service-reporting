@@ -72,6 +72,58 @@ Columns: {json.dumps(chinese_cols, ensure_ascii=False)}"""
             pass
         return {}
 
+    def ai_map_columns(self, excel_columns: list[str], db_columns: list[dict]) -> list[dict]:
+        """Call LLM to suggest optimal column mappings between Excel and DB"""
+        db_info = [{"name": c["name"], "type": c.get("type", "unknown")} for c in db_columns]
+        prompt = f"""You are a data mapping assistant. Given Excel column headers and database column definitions, suggest the best one-to-one mapping between them.
+
+Excel columns: {json.dumps(excel_columns, ensure_ascii=False)}
+Database columns: {json.dumps(db_info, ensure_ascii=False)}
+
+Rules:
+- Each Excel column maps to at most one DB column (one-to-one)
+- Each DB column is used by at most one Excel column
+- Use semantic matching, not just exact string match
+- Consider context: Chinese business terms vs English DB names
+- Return ONLY a JSON array of objects with keys: excel_column, db_column, confidence (0-1)
+- For columns that cannot be mapped, set db_column to null
+
+Example output:
+[{"excel_column": "销售额", "db_column": "revenue", "confidence": 0.95}]"""
+        try:
+            from app.llm_adapter import DashScopeProvider
+            llm = DashScopeProvider()
+            raw = llm.generate([{"role": "system", "content": "You are a helpful assistant. Always respond with valid JSON only."}, {"role": "user", "content": prompt}], temperature=0.1)
+            json_match = re.search(r'\[.*\]', raw, re.DOTALL)
+            if json_match:
+                ai_mappings = json.loads(json_match.group())
+                # Build result combining AI suggestions with existing logic
+                used_db = set()
+                results = []
+                for m in ai_mappings:
+                    match_type = "ai" if m.get("confidence", 0) > 0.7 else "manual"
+                    db_col = m.get("db_column")
+                    if db_col and db_col not in used_db:
+                        used_db.add(db_col)
+                    results.append({
+                        "excel_column": m.get("excel_column"),
+                        "db_column": db_col,
+                        "match_type": match_type
+                    })
+                # Add unmatched DB columns
+                mapped_db = {m["db_column"] for m in results if m.get("db_column")}
+                for c in db_columns:
+                    if c["name"] not in mapped_db:
+                        results.append({
+                            "excel_column": None,
+                            "db_column": c["name"],
+                            "match_type": "unmatched"
+                        })
+                return results
+        except Exception:
+            pass
+        return []
+
     def _infer_column_type(self, series: pd.Series) -> str:
         non_null = series.dropna()
         if len(non_null) == 0:

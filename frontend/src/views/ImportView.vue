@@ -24,8 +24,11 @@
       </el-table>
       <p>共 {{ preview.row_count }} 行</p>
 
-      <h4 style="margin-top: 20px;">列映射</h4>
-      <el-table :data="mappings" border size="small">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
+        <h4 style="margin: 0;">列映射</h4>
+        <el-button size="small" :loading="aiLoading" @click="aiMap">AI智能匹配</el-button>
+      </div>
+      <el-table :data="mappings" border size="small" style="margin-top: 8px;">
         <el-table-column label="Excel列名" width="180">
           <template #default="{ row }">
             {{ row.excel_column || '—' }}
@@ -33,17 +36,23 @@
         </el-table-column>
         <el-table-column label="映射到字段" width="220">
           <template #default="{ row }">
-            <el-select v-if="row.excel_column" v-model="row.db_column" size="small" clearable>
+            <el-select v-if="row.excel_column" v-model="row.db_column" size="small" clearable @change="onMappingChange">
               <el-option label="不导入" :value="null" />
-              <el-option v-for="col in dbColumns" :key="col.name" :label="col.name" :value="col.name" />
+              <el-option
+                v-for="col in availableDbColumns(row)"
+                :key="col.name"
+                :label="col.name"
+                :value="col.name"
+              />
             </el-select>
-            <span v-else class="text-muted">{{ row.db_column }}（未匹配）</span>
+            <span v-else class="text-muted">{{ row.db_column }}（未匹配，可选择性映射）</span>
           </template>
         </el-table-column>
         <el-table-column label="匹配方式" width="100">
           <template #default="{ row }">
             <el-tag v-if="row.match_type === 'exact'" type="success" size="small">精确</el-tag>
             <el-tag v-else-if="row.match_type === 'fuzzy'" type="warning" size="small">模糊</el-tag>
+            <el-tag v-else-if="row.match_type === 'ai'" type="primary" size="small">AI</el-tag>
             <el-tag v-else-if="row.match_type === 'unmatched'" type="info" size="small">未匹配</el-tag>
             <el-tag v-else type="danger" size="small">手动</el-tag>
           </template>
@@ -66,6 +75,7 @@ const period = ref('')
 const file = ref(null)
 const preview = ref(null)
 const mappings = ref([])
+const aiLoading = ref(false)
 
 onMounted(async () => { dataTypes.value = await api.getDataTypes() })
 
@@ -82,6 +92,18 @@ const previewRows = computed(() =>
   }) || []
 )
 
+/** Get DB columns not already assigned to another Excel column */
+function availableDbColumns(currentRow) {
+  if (!dbColumns.value.length) return []
+  const used = new Set()
+  for (const m of mappings.value) {
+    if (m !== currentRow && m.excel_column && m.db_column) {
+      used.add(m.db_column)
+    }
+  }
+  return dbColumns.value.filter(c => !used.has(c.name))
+}
+
 function onDataTypeChange() {
   preview.value = null
   mappings.value = []
@@ -96,6 +118,53 @@ async function handleFile(uploadFile) {
   const res = await api.uploadPreview(file.value, dataTypeId.value)
   preview.value = res
   mappings.value = res.mappings || []
+}
+
+async function aiMap() {
+  const excelCols = mappings.value.filter(m => m.excel_column).map(m => m.excel_column)
+  if (!excelCols.length) {
+    ElMessage.warning('没有可匹配的Excel列')
+    return
+  }
+  aiLoading.value = true
+  try {
+    const res = await api.aiMapColumns(excelCols, dbColumns.value)
+    // Merge AI results: update existing mappings with AI suggestions
+    const aiMap = {}
+    for (const m of res.mappings) {
+      if (m.excel_column && m.db_column && m.match_type === 'ai') {
+        aiMap[m.excel_column] = m.db_column
+      }
+    }
+    let updated = 0
+    for (const m of mappings.value) {
+      if (m.excel_column && aiMap[m.excel_column] && m.match_type !== 'exact') {
+        m.db_column = aiMap[m.excel_column]
+        m.match_type = 'ai'
+        updated++
+      }
+    }
+    ElMessage.success(`AI建议 ${updated} 个映射`)
+  } catch (e) {
+    ElMessage.error(e.message || 'AI匹配失败')
+  } finally {
+    aiLoading.value = false
+  }
+}
+
+function onMappingChange() {
+  // Auto-remove matched "unmatched" entries when the user assigns the DB column manually
+  const assigned = new Set()
+  for (const m of mappings.value) {
+    if (m.excel_column && m.db_column) assigned.add(m.db_column)
+  }
+  // Remove unmatched rows whose db_column is now assigned
+  mappings.value = mappings.value.filter(m => {
+    if (!m.excel_column && m.match_type === 'unmatched' && assigned.has(m.db_column)) {
+      return false
+    }
+    return true
+  })
 }
 
 async function confirmImport() {

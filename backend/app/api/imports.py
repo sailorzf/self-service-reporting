@@ -49,6 +49,17 @@ async def upload_preview(
     finally:
         os.unlink(tmp_path)
 
+@router.post("/ai-map")
+def ai_column_map(
+    excel_columns: str = Form(...),
+    db_columns: str = Form(...)
+):
+    import json
+    excel_cols = json.loads(excel_columns)
+    db_cols = json.loads(db_columns)
+    mappings = service.ai_map_columns(excel_cols, db_cols)
+    return {"mappings": mappings}
+
 @router.post("/confirm")
 def confirm_import(
     data_type_id: int = Form(...),

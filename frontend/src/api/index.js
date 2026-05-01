@@ -25,6 +25,18 @@ export const api = {
     return res.json()
   },
 
+  aiMapColumns: async (excelColumns, dbColumns) => {
+    const formData = new FormData()
+    formData.append('excel_columns', JSON.stringify(excelColumns))
+    formData.append('db_columns', JSON.stringify(dbColumns))
+    const res = await fetch(`${BASE_URL}/imports/ai-map`, { method: 'POST', body: formData })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }))
+      throw new Error(err.detail || 'AI匹配失败')
+    }
+    return res.json()
+  },
+
   inferSchema: async (file) => {
     const formData = new FormData()
     formData.append('file', file)
