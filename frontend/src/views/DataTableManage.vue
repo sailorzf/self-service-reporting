@@ -92,12 +92,16 @@
         </el-tab-pane>
         <el-tab-pane label="从Excel导入" name="excel">
           <div style="margin-top: 12px;">
-            <el-upload action="" :auto-upload="false" :on-change="handleExcelUpload" accept=".xlsx,.xls" drag>
+            <el-upload action="" :auto-upload="false" :on-change="handleExcelUpload" accept=".xlsx,.xls" drag :disabled="loading">
               <div style="padding: 20px;">
                 <p>拖拽文件到此处，或点击选择Excel文件</p>
                 <p class="text-muted">系统将自动解析表头和数据类型，生成表结构</p>
               </div>
             </el-upload>
+            <div v-if="loading" style="margin-top: 16px; text-align: center; padding: 20px;">
+              <el-icon class="is-loading" style="font-size: 24px; color: #409eff;"><Loading /></el-icon>
+              <p style="color: #909399; margin-top: 8px;">正在解析文件并调用 AI 翻译字段名，请稍候...</p>
+            </div>
             <div v-if="form.columns_json.length > 0 && createMode === 'excel'" style="margin-top: 16px;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                 <span>推断的表结构（共 {{ form.columns_json.length }} 个字段，可编辑后创建）</span>
@@ -161,11 +165,13 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Loading } from '@element-plus/icons-vue'
 import { api } from '../api'
 
 const tables = ref([])
 const showCreate = ref(false)
 const createMode = ref('manual')
+const loading = ref(false)
 const form = ref({
   code: '',
   name: '',
@@ -187,10 +193,12 @@ async function loadTables() {
 function resetForm() {
   form.value = { code: '', name: '', table_name: '', columns_json: [] }
   createMode.value = 'manual'
+  loading.value = false
 }
 
 async function handleExcelUpload(uploadFile) {
   if (!uploadFile.raw) return
+  loading.value = true
   try {
     const res = await api.inferSchema(uploadFile.raw)
     const baseName = res.suggested_table_name.replace(/^data_/, '')
@@ -203,6 +211,8 @@ async function handleExcelUpload(uploadFile) {
   } catch (e) {
     ElMessage.error('Excel解析失败: ' + (e.message || '未知错误'))
     form.value.columns_json = []
+  } finally {
+    loading.value = false
   }
 }
 
