@@ -28,14 +28,32 @@
       <el-tabs v-model="createMode">
         <el-tab-pane label="手动创建" name="manual">
           <el-form :model="form" label-width="100px" style="margin-top: 12px;">
-            <el-form-item label="标识">
-              <el-input v-model="form.code" placeholder="如: operation" />
+            <el-form-item>
+              <template #label>
+                <span>标识</span>
+                <el-tooltip content="系统内部的唯一标识，用于API引用和报表配置。例: operation" placement="top">
+                  <el-icon style="margin-left: 4px; color: #909399; cursor: help;"><QuestionFilled /></el-icon>
+                </el-tooltip>
+              </template>
+              <el-input v-model="form.code" placeholder="系统内部的唯一标识，不能重复" />
             </el-form-item>
-            <el-form-item label="名称">
-              <el-input v-model="form.name" placeholder="如: 运营数据" />
+            <el-form-item>
+              <template #label>
+                <span>名称</span>
+                <el-tooltip content="界面展示时使用的中文名，用户可以直观看到。例: 运营数据" placement="top">
+                  <el-icon style="margin-left: 4px; color: #909399; cursor: help;"><QuestionFilled /></el-icon>
+                </el-tooltip>
+              </template>
+              <el-input v-model="form.name" placeholder="界面展示时使用的中文名" />
             </el-form-item>
-            <el-form-item label="物理表名">
-              <el-input v-model="form.table_name" placeholder="如: data_operation" />
+            <el-form-item>
+              <template #label>
+                <span>物理表名</span>
+                <el-tooltip content="MySQL数据库中实际存储数据的表名。创建数据表后会自动在MySQL中建立此表，不能与已有表重名" placement="top">
+                  <el-icon style="margin-left: 4px; color: #909399; cursor: help;"><QuestionFilled /></el-icon>
+                </el-tooltip>
+              </template>
+              <el-input v-model="form.table_name" placeholder="MySQL中的实际表名，不能与已有表重名" />
             </el-form-item>
             <el-form-item label="字段定义">
               <div style="margin-bottom: 8px;">
@@ -93,14 +111,32 @@
         <el-tab-pane label="从Excel导入" name="excel">
           <div style="margin-top: 12px;">
             <el-form :model="form" label-width="100px">
-              <el-form-item label="标识">
-                <el-input v-model="form.code" placeholder="自动填充，可修改" />
+              <el-form-item>
+                <template #label>
+                  <span>标识</span>
+                  <el-tooltip content="系统内部的唯一标识，用于API引用和报表配置。例: operation" placement="top">
+                    <el-icon style="margin-left: 4px; color: #909399; cursor: help;"><QuestionFilled /></el-icon>
+                  </el-tooltip>
+                </template>
+                <el-input v-model="form.code" placeholder="自动填充，可修改，不能重复" />
               </el-form-item>
-              <el-form-item label="名称">
+              <el-form-item>
+                <template #label>
+                  <span>名称</span>
+                  <el-tooltip content="界面展示时使用的中文名，用户可以直观看到。例: 运营数据" placement="top">
+                    <el-icon style="margin-left: 4px; color: #909399; cursor: help;"><QuestionFilled /></el-icon>
+                  </el-tooltip>
+                </template>
                 <el-input v-model="form.name" placeholder="自动填充，可修改" />
               </el-form-item>
-              <el-form-item label="物理表名">
-                <el-input v-model="form.table_name" placeholder="自动填充，可修改" />
+              <el-form-item>
+                <template #label>
+                  <span>物理表名</span>
+                  <el-tooltip content="MySQL数据库中实际存储数据的表名。创建数据表后会自动在MySQL中建立此表，不能与已有表重名" placement="top">
+                    <el-icon style="margin-left: 4px; color: #909399; cursor: help;"><QuestionFilled /></el-icon>
+                  </el-tooltip>
+                </template>
+                <el-input v-model="form.table_name" placeholder="自动填充，可修改，不能重复" />
               </el-form-item>
             </el-form>
             <el-upload action="" :auto-upload="false" :on-change="handleExcelUpload" accept=".xlsx,.xls" drag :disabled="loading" :show-file-list="false">
@@ -179,7 +215,7 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Loading } from '@element-plus/icons-vue'
+import { Loading, QuestionFilled } from '@element-plus/icons-vue'
 import { api } from '../api'
 
 const tables = ref([])
