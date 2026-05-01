@@ -12,7 +12,7 @@ class DashScopeProvider(LLMProvider):
     def __init__(self):
         self.client = OpenAI(
             api_key=settings.dashscope_api_key,
-            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"
+            base_url=settings.dashscope_base_url
         )
         self.model = settings.dashscope_model
 
