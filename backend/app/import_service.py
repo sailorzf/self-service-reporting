@@ -1,5 +1,6 @@
 import os
 import re
+import json
 from datetime import datetime
 from typing import Any
 from sqlalchemy.orm import Session
@@ -15,6 +16,10 @@ class ImportService:
     def infer_schema(self, file_path: str, original_filename: str) -> dict:
         df = pd.read_excel(file_path, engine="openpyxl")
         df.columns = [str(c).strip() for c in df.columns]
+        chinese_cols = [c for c in df.columns if any('一' <= ch <= '鿿' for ch in c)]
+        ai_translations = {}
+        if chinese_cols:
+            ai_translations = self._ai_translate_columns(chinese_cols)
         columns = []
         for col in df.columns:
             series = df[col].dropna()
@@ -31,8 +36,9 @@ class ImportService:
                     max_val = series.max()
                     max_str_len = len(str(max_val).replace('.', '').replace('-', ''))
                     length = max(max_str_len, 10)
+            name = ai_translations.get(col, self._to_snake_case(col))
             columns.append({
-                "name": self._to_snake_case(col),
+                "name": name,
                 "type": col_type,
                 "length": length if col_type == "varchar" else None,
                 "precision": length if col_type == "decimal" else None,
@@ -47,6 +53,24 @@ class ImportService:
             "preview": df.values.tolist()[:5],
             "preview_columns": list(df.columns)
         }
+
+    def _ai_translate_columns(self, chinese_cols: list[str]) -> dict[str, str]:
+        """Call LLM to translate Chinese column names to English snake_case"""
+        prompt = f"""You are a database naming assistant. Translate these Chinese column names to English snake_case identifiers suitable for MySQL columns.
+Rules: use concise descriptive names, lowercase with underscores, no abbreviations that lose meaning.
+Return ONLY a JSON object mapping original Chinese name to English snake_case name. No explanation.
+
+Columns: {json.dumps(chinese_cols, ensure_ascii=False)}"""
+        try:
+            from app.llm_adapter import DashScopeProvider
+            llm = DashScopeProvider()
+            raw = llm.generate([{"role": "system", "content": "You are a helpful assistant. Always respond with valid JSON only."}, {"role": "user", "content": prompt}], temperature=0.1)
+            json_match = re.search(r'\{.*\}', raw, re.DOTALL)
+            if json_match:
+                return json.loads(json_match.group())
+        except Exception:
+            pass
+        return {}
 
     def _infer_column_type(self, series: pd.Series) -> str:
         non_null = series.dropna()
