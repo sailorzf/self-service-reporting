@@ -92,12 +92,26 @@
         </el-tab-pane>
         <el-tab-pane label="从Excel导入" name="excel">
           <div style="margin-top: 12px;">
-            <el-upload action="" :auto-upload="false" :on-change="handleExcelUpload" accept=".xlsx,.xls" drag :disabled="loading">
+            <el-form :model="form" label-width="100px">
+              <el-form-item label="标识">
+                <el-input v-model="form.code" placeholder="自动填充，可修改" />
+              </el-form-item>
+              <el-form-item label="名称">
+                <el-input v-model="form.name" placeholder="自动填充，可修改" />
+              </el-form-item>
+              <el-form-item label="物理表名">
+                <el-input v-model="form.table_name" placeholder="自动填充，可修改" />
+              </el-form-item>
+            </el-form>
+            <el-upload action="" :auto-upload="false" :on-change="handleExcelUpload" accept=".xlsx,.xls" drag :disabled="loading" :show-file-list="false">
               <div style="padding: 20px;">
                 <p>拖拽文件到此处，或点击选择Excel文件</p>
-                <p class="text-muted">系统将自动解析表头和数据类型，生成表结构</p>
+                <p class="text-muted">上传后自动解析表头和数据类型，生成表结构</p>
               </div>
             </el-upload>
+            <div v-if="form.columns_json.length > 0 && createMode === 'excel'" style="margin-top: 8px;">
+              <el-button size="small" @click="reupload">重新上传文件</el-button>
+            </div>
             <div v-if="loading" style="margin-top: 16px; text-align: center; padding: 20px;">
               <el-icon class="is-loading" style="font-size: 24px; color: #409eff;"><Loading /></el-icon>
               <p style="color: #909399; margin-top: 8px;">正在解析文件并调用 AI 翻译字段名，请稍候...</p>
@@ -214,6 +228,14 @@ async function handleExcelUpload(uploadFile) {
   } finally {
     loading.value = false
   }
+}
+
+function reupload() {
+  form.value.columns_json = []
+  form.value.code = ''
+  form.value.name = ''
+  form.value.table_name = ''
+  createMode.value = 'excel'
 }
 
 function addColumn() {
