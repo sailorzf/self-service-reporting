@@ -47,7 +47,7 @@ class AISession(Base):
 class AIMessage(Base):
     __tablename__ = "ai_messages"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    session_id = Column(String(64), ForeignKey("ai_sessions.session_id"), nullable=False)
+    session_id = Column(String(64), ForeignKey("ai_sessions.session_id", ondelete="CASCADE"), nullable=False)
     role = Column(String(20), nullable=False)
     content = Column(Text, nullable=False)
     sql_query = Column(Text, nullable=True)

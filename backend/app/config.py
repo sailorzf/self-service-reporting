@@ -1,7 +1,7 @@
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
-    database_url: str = "mysql+pymysql://root:password@localhost:3306/report_db"
+    database_url: str = "mysql+pymysql://user:pass@localhost:3306/report_db"
     dashscope_api_key: str = ""
     dashscope_model: str = "qwen-plus"
     max_joins: int = 3
