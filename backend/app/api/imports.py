@@ -11,6 +11,20 @@ from app.import_service import ImportService
 router = APIRouter()
 service = ImportService()
 
+@router.post("/infer-schema")
+async def infer_schema(file: UploadFile = File(...)):
+    if not file.filename.endswith((".xlsx", ".xls")):
+        raise HTTPException(400, "仅支持Excel文件(.xlsx, .xls)")
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
+        tmp.write(await file.read())
+        tmp_path = tmp.name
+    try:
+        return service.infer_schema(tmp_path)
+    except Exception as e:
+        raise HTTPException(400, f"文件解析失败: {e}")
+    finally:
+        os.unlink(tmp_path)
+
 @router.post("/upload", response_model=ImportPreview)
 async def upload_preview(
     file: UploadFile = File(...),

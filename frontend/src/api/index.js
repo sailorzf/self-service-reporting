@@ -25,6 +25,13 @@ export const api = {
     return res.json()
   },
 
+  inferSchema: async (file) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    const res = await fetch(`${BASE_URL}/imports/infer-schema`, { method: 'POST', body: formData })
+    return res.json()
+  },
+
   getReports: () => request('/reports/'),
   createReport: (data) => request('/reports/', { method: 'POST', body: JSON.stringify(data) }),
   executeQuery: (data) => request('/reports/execute', { method: 'POST', body: JSON.stringify(data) }),

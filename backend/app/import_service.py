@@ -1,4 +1,5 @@
 import os
+import re
 from datetime import datetime
 from typing import Any
 from sqlalchemy.orm import Session
@@ -10,6 +11,90 @@ class ImportService:
         df = pd.read_excel(file_path, engine="openpyxl")
         df.columns = [str(c).strip() for c in df.columns]
         return list(df.columns), df.values.tolist()
+
+    def infer_schema(self, file_path: str) -> dict:
+        df = pd.read_excel(file_path, engine="openpyxl")
+        df.columns = [str(c).strip() for c in df.columns]
+        columns = []
+        for col in df.columns:
+            series = df[col].dropna()
+            if len(series) == 0:
+                col_type = "varchar"
+                length = 255
+            else:
+                col_type = self._infer_column_type(series)
+                length = 255
+                if col_type == "varchar":
+                    max_len = int(series.astype(str).str.len().max())
+                    length = min(max(max_len * 2, 50), 500)
+                elif col_type == "decimal":
+                    max_val = series.max()
+                    max_str_len = len(str(max_val).replace('.', '').replace('-', ''))
+                    length = max(max_str_len, 10)
+            columns.append({
+                "name": self._to_snake_case(col),
+                "type": col_type,
+                "length": length if col_type == "varchar" else None,
+                "precision": length if col_type == "decimal" else None,
+                "scale": 2 if col_type == "decimal" else None,
+                "nullable": True,
+                "original_name": col
+            })
+        return {
+            "columns": columns,
+            "suggested_table_name": self._to_snake_case(os.path.splitext(os.path.basename(file_path))[0]),
+            "row_count": len(df),
+            "preview": df.values.tolist()[:5],
+            "preview_columns": list(df.columns)
+        }
+
+    def _infer_column_type(self, series: pd.Series) -> str:
+        non_null = series.dropna()
+        if len(non_null) == 0:
+            return "varchar"
+        # Try datetime
+        if pd.api.types.is_datetime64_any_dtype(series):
+            return "datetime"
+        # Try int
+        if pd.api.types.is_integer_dtype(series):
+            return "int"
+        # Try float/decimal
+        if pd.api.types.is_float_dtype(series):
+            return "decimal"
+        # Try parsing as number
+        numeric_count = 0
+        for v in non_null.head(20):
+            try:
+                float(str(v).replace(',', ''))
+                numeric_count += 1
+            except (ValueError, TypeError):
+                pass
+        if numeric_count == len(non_null.head(20)):
+            return "decimal"
+        # Try datetime parsing
+        date_count = 0
+        for v in non_null.head(20):
+            try:
+                pd.to_datetime(str(v))
+                date_count += 1
+            except (ValueError, TypeError):
+                pass
+        if date_count == len(non_null.head(20)):
+            return "datetime"
+        # Default to varchar
+        max_len = non_null.astype(str).str.len().max()
+        if max_len > 500:
+            return "text"
+        return "varchar"
+
+    def _to_snake_case(self, text: str) -> str:
+        text = re.sub(r'[（）()，,.\s]+', '_', text)
+        text = re.sub(r'[^a-zA-Z0-9_一-鿿]', '', text)
+        text = re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', text)
+        text = re.sub(r'_+', '_', text).lower().strip('_')
+        if not text or text[0].isdigit():
+            text = 'col_' + text
+        return text
 
     def preview(self, file_path: str, columns_json: list[dict] = None, max_rows: int = 10) -> dict:
         df = pd.read_excel(file_path, engine="openpyxl")
