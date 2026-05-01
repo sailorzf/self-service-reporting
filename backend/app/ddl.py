@@ -28,6 +28,7 @@ def columns_to_mysql_ddl(columns_json: list[dict], table_name: str) -> str:
     lines.append("  `source_file` VARCHAR(255) DEFAULT NULL")
     lines.append("  `uploaded_at` DATETIME DEFAULT NULL")
     lines.append("  `uploaded_by` VARCHAR(100) DEFAULT NULL")
+    lines.append("  `batch_id` VARCHAR(64) DEFAULT NULL")
     return f"CREATE TABLE IF NOT EXISTS `{table_name}` (\n" + ",\n".join(lines) + "\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"
 
 

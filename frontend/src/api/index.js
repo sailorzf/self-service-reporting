@@ -61,4 +61,5 @@ export const api = {
 
   viewShare: (token) => request(`/share/${token}`),
   getImports: () => request('/imports/'),
+  getImportData: (id) => request(`/imports/${id}/data`),
 }

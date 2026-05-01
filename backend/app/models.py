@@ -30,6 +30,7 @@ class ImportRecord(Base):
     period = Column(String(7), nullable=False)
     file_name = Column(String(255), nullable=False)
     row_count = Column(Integer, default=0)
+    batch_id = Column(String(64), nullable=True)
     status = Column(String(20), default="success")
     error_log = Column(Text, nullable=True)
     uploaded_at = Column(DateTime, server_default=func.now())

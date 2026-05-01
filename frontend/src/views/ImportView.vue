@@ -24,6 +24,7 @@
       <el-table-column prop="uploaded_at" label="导入时间" width="180" />
       <el-table-column label="操作" width="100">
         <template #default="{ row }">
+          <el-button v-if="row.status === 'success'" size="small" type="primary" @click="$router.push(`/import/${row.id}`)">详情</el-button>
           <el-button v-if="row.status === 'failed'" size="small" type="danger" @click="showError(row)">详情</el-button>
         </template>
       </el-table-column>

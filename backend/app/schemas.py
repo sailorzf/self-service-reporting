@@ -106,6 +106,7 @@ class ImportRecordResponse(BaseModel):
     period: str
     file_name: str
     row_count: int
+    batch_id: Optional[str] = None
     status: str
     error_log: Optional[str] = None
     uploaded_at: Optional[datetime] = None

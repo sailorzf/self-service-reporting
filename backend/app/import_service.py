@@ -220,12 +220,14 @@ Example output:
         file_name: str,
         table_name: str,
         column_mappings: list[dict],
+        batch_id: str = None,
         uploaded_by: str = "system"
     ) -> ImportRecord:
         record = ImportRecord(
             data_type_id=data_type_id,
             period=period,
             file_name=file_name,
+            batch_id=batch_id,
             uploaded_by=uploaded_by
         )
         try:
@@ -246,6 +248,8 @@ Example output:
             df["source_file"] = file_name
             df["uploaded_at"] = datetime.now()
             df["uploaded_by"] = uploaded_by
+            if batch_id:
+                df["batch_id"] = batch_id
 
             df.to_sql(table_name, db.get_bind(), if_exists="append", index=False)
             record.status = "success"

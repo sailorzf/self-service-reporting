@@ -195,7 +195,7 @@ async function confirmImport() {
     }
     const result = await res.json()
     ElMessage.success(`导入成功，共 ${result.row_count} 行`)
-    router.push('/import')
+    router.push(`/import/${result.record_id}`)
   } catch (e) {
     ElMessage.error(e.message || '导入失败')
   }
