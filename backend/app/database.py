@@ -4,7 +4,8 @@ from app.config import settings
 
 engine = create_engine(settings.database_url, echo=False, pool_pre_ping=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-Base = DeclarativeBase()
+class Base(DeclarativeBase):
+    pass
 
 def get_db():
     db = SessionLocal()
