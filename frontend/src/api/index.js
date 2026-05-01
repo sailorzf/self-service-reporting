@@ -29,6 +29,10 @@ export const api = {
     const formData = new FormData()
     formData.append('file', file)
     const res = await fetch(`${BASE_URL}/imports/infer-schema`, { method: 'POST', body: formData })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }))
+      throw new Error(err.detail || '解析失败')
+    }
     return res.json()
   },
 

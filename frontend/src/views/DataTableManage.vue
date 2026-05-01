@@ -98,16 +98,15 @@
                 <p class="text-muted">系统将自动解析表头和数据类型，生成表结构</p>
               </div>
             </el-upload>
-            <div v-if="inferredColumns.length > 0" style="margin-top: 16px;">
+            <div v-if="form.columns_json.length > 0 && createMode === 'excel'" style="margin-top: 16px;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <span>推断的表结构（共 {{ inferredColumns.length }} 个字段）</span>
-                <el-button size="small" type="primary" @click="useInferred">使用此结构</el-button>
+                <span>推断的表结构（共 {{ form.columns_json.length }} 个字段，可编辑后创建）</span>
               </div>
-              <el-table :data="inferredColumns" border size="small">
+              <el-table :data="form.columns_json" border size="small">
                 <el-table-column label="Excel列名" width="150">
-                  <template #default="{ row }">{{ row.original_name }}</template>
+                  <template #default="{ row }">{{ row.original_name || row.name }}</template>
                 </el-table-column>
-                <el-table-column label="推断字段名" width="160">
+                <el-table-column label="字段名" width="160">
                   <template #default="{ row: col }">
                     <el-input v-model="col.name" size="small" />
                   </template>
@@ -126,7 +125,6 @@
                 <el-table-column label="长度" width="90">
                   <template #default="{ row: col }">
                     <el-input-number v-if="col.type === 'varchar'" v-model="col.length" :min="1" :max="65535" size="small" controls-position="right" />
-                    <span v-else-if="col.type === 'decimal'" class="text-muted">—</span>
                     <span v-else class="text-muted">—</span>
                   </template>
                 </el-table-column>
@@ -174,16 +172,11 @@ const form = ref({
   table_name: '',
   columns_json: []
 })
-const inferredColumns = ref([])
-const inferredTableName = ref('')
-
 onMounted(async () => { await loadTables() })
 
 watch(showCreate, (val) => {
   if (!val) {
-    inferredColumns.value = []
-    inferredTableName.value = ''
-    createMode.value = 'manual'
+    resetForm()
   }
 })
 
@@ -191,33 +184,26 @@ async function loadTables() {
   tables.value = await api.getDataTypes()
 }
 
+function resetForm() {
+  form.value = { code: '', name: '', table_name: '', columns_json: [] }
+  createMode.value = 'manual'
+}
+
 async function handleExcelUpload(uploadFile) {
   if (!uploadFile.raw) return
   try {
     const res = await api.inferSchema(uploadFile.raw)
-    inferredColumns.value = res.columns
-    inferredTableName.value = res.suggested_table_name
+    const baseName = res.suggested_table_name.replace(/^data_/, '')
+    form.value.code = baseName
+    form.value.name = baseName
+    form.value.table_name = res.suggested_table_name
+    form.value.columns_json = res.columns
+    createMode.value = 'excel'
+    ElMessage.success(`已解析 ${res.columns.length} 个字段，请检查后创建`)
   } catch (e) {
     ElMessage.error('Excel解析失败: ' + (e.message || '未知错误'))
-    inferredColumns.value = []
+    form.value.columns_json = []
   }
-}
-
-function useInferred() {
-  form.value.columns_json = inferredColumns.value.map(c => ({
-    name: c.name,
-    type: c.type,
-    length: c.length || 255,
-    precision: c.precision || 10,
-    scale: c.scale || 2,
-    nullable: c.nullable !== false
-  }))
-  form.value.table_name = inferredTableName.value
-  const baseName = inferredTableName.value.replace(/^data_/, '')
-  form.value.name = baseName
-  form.value.code = baseName
-  createMode.value = 'manual'
-  ElMessage.success('表结构已填充，可在"手动创建"中编辑确认')
 }
 
 function addColumn() {
@@ -256,9 +242,7 @@ async function createTable() {
     })
     ElMessage.success('数据表创建成功')
     showCreate.value = false
-    form.value = { code: '', name: '', table_name: '', columns_json: [] }
-    inferredColumns.value = []
-    inferredTableName.value = ''
+    resetForm()
     await loadTables()
   } catch (e) {
     ElMessage.error(e.message)

@@ -12,7 +12,7 @@ class ImportService:
         df.columns = [str(c).strip() for c in df.columns]
         return list(df.columns), df.values.tolist()
 
-    def infer_schema(self, file_path: str) -> dict:
+    def infer_schema(self, file_path: str, original_filename: str) -> dict:
         df = pd.read_excel(file_path, engine="openpyxl")
         df.columns = [str(c).strip() for c in df.columns]
         columns = []
@@ -42,7 +42,7 @@ class ImportService:
             })
         return {
             "columns": columns,
-            "suggested_table_name": self._to_snake_case(os.path.splitext(os.path.basename(file_path))[0]),
+            "suggested_table_name": "data_" + self._to_snake_case(os.path.splitext(original_filename)[0]),
             "row_count": len(df),
             "preview": df.values.tolist()[:5],
             "preview_columns": list(df.columns)

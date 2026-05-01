@@ -19,7 +19,7 @@ async def infer_schema(file: UploadFile = File(...)):
         tmp.write(await file.read())
         tmp_path = tmp.name
     try:
-        return service.infer_schema(tmp_path)
+        return service.infer_schema(tmp_path, file.filename)
     except Exception as e:
         raise HTTPException(400, f"文件解析失败: {e}")
     finally:
