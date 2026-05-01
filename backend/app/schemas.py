@@ -18,8 +18,14 @@ class DataTypeResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class ColumnMapping(BaseModel):
+    excel_column: Optional[str] = None
+    db_column: Optional[str] = None
+    match_type: str
+
 class ImportPreview(BaseModel):
-    columns: list[str]
+    excel_columns: list[str]
+    mappings: list[ColumnMapping]
     rows: list[list[Any]]
     row_count: int
 

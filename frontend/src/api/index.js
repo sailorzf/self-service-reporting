@@ -17,9 +17,10 @@ export const api = {
   createDataType: (data) => request('/data-types/', { method: 'POST', body: JSON.stringify(data) }),
   deleteDataType: (id) => request(`/data-types/${id}`, { method: 'DELETE' }),
 
-  uploadPreview: async (file) => {
+  uploadPreview: async (file, dataTypeId = null) => {
     const formData = new FormData()
     formData.append('file', file)
+    if (dataTypeId) formData.append('data_type_id', dataTypeId)
     const res = await fetch(`${BASE_URL}/imports/upload`, { method: 'POST', body: formData })
     return res.json()
   },

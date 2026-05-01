@@ -12,7 +12,7 @@
       <el-table-column label="字段" width="300">
         <template #default="{ row }">
           <el-tag v-for="col in row.columns_json" :key="col.name" size="small" style="margin: 2px;">
-            {{ col.name }}({{ col.type }})
+            {{ col.name }}({{ col.type }}{{ formatLength(col) }})
           </el-tag>
         </template>
       </el-table-column>
@@ -40,14 +40,14 @@
             <el-button size="small" @click="addColumn">+ 添加字段</el-button>
           </div>
           <el-table :data="form.columns_json" border size="small">
-            <el-table-column label="字段名" width="200">
+            <el-table-column label="字段名" width="160">
               <template #default="{ row: col }">
                 <el-input v-model="col.name" size="small" placeholder="字段名" />
               </template>
             </el-table-column>
-            <el-table-column label="类型" width="150">
+            <el-table-column label="类型" width="120">
               <template #default="{ row: col }">
-                <el-select v-model="col.type" size="small">
+                <el-select v-model="col.type" size="small" @change="onTypeChange(col)">
                   <el-option label="varchar" value="varchar" />
                   <el-option label="decimal" value="decimal" />
                   <el-option label="int" value="int" />
@@ -56,7 +56,30 @@
                 </el-select>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="80">
+            <el-table-column label="长度" width="90">
+              <template #default="{ row: col }">
+                <el-input-number v-if="col.type === 'varchar'" v-model="col.length" :min="1" :max="65535" size="small" controls-position="right" />
+                <span v-else class="text-muted">—</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="精度" width="80">
+              <template #default="{ row: col }">
+                <el-input-number v-if="col.type === 'decimal'" v-model="col.precision" :min="1" :max="65" size="small" controls-position="right" />
+                <span v-else class="text-muted">—</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="小数位" width="80">
+              <template #default="{ row: col }">
+                <el-input-number v-if="col.type === 'decimal'" v-model="col.scale" :min="0" :max="30" size="small" controls-position="right" />
+                <span v-else class="text-muted">—</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="可空" width="60">
+              <template #default="{ row: col }">
+                <el-checkbox v-model="col.nullable" />
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="60">
               <template #default="{$index}">
                 <el-button size="small" type="danger" @click="removeColumn($index)">×</el-button>
               </template>
@@ -93,11 +116,25 @@ async function loadTables() {
 }
 
 function addColumn() {
-  form.value.columns_json.push({ name: '', type: 'varchar' })
+  form.value.columns_json.push({ name: '', type: 'varchar', length: 255, precision: 10, scale: 2, nullable: true })
 }
 
 function removeColumn(idx) {
   form.value.columns_json.splice(idx, 1)
+}
+
+function onTypeChange(col) {
+  if (col.type === 'varchar' && !col.length) col.length = 255
+  if (col.type === 'decimal') {
+    if (!col.precision) col.precision = 10
+    if (col.scale === undefined) col.scale = 2
+  }
+}
+
+function formatLength(col) {
+  if (col.type === 'varchar' && col.length) return `(${col.length})`
+  if (col.type === 'decimal' && col.precision) return `(${col.precision},${col.scale || 0})`
+  return ''
 }
 
 async function createTable() {

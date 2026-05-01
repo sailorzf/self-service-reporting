@@ -1,9 +1,10 @@
 import os
+import json
 import tempfile
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Form
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import DataType
+from app.models import DataType, ImportRecord
 from app.schemas import ImportPreview, ImportRecordResponse
 from app.import_service import ImportService
 
@@ -11,14 +12,23 @@ router = APIRouter()
 service = ImportService()
 
 @router.post("/upload", response_model=ImportPreview)
-async def upload_preview(file: UploadFile = File(...)):
+async def upload_preview(
+    file: UploadFile = File(...),
+    data_type_id: int = Form(default=None),
+    db: Session = Depends(get_db)
+):
     if not file.filename.endswith((".xlsx", ".xls")):
         raise HTTPException(400, "仅支持Excel文件(.xlsx, .xls)")
     with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
         tmp.write(await file.read())
         tmp_path = tmp.name
     try:
-        preview = service.preview(tmp_path)
+        columns_json = None
+        if data_type_id:
+            dt = db.query(DataType).filter(DataType.id == data_type_id).first()
+            if dt:
+                columns_json = dt.columns_json
+        preview = service.preview(tmp_path, columns_json)
         return preview
     except Exception as e:
         raise HTTPException(400, f"文件解析失败: {e}")
@@ -30,20 +40,22 @@ def confirm_import(
     data_type_id: int = Form(...),
     period: str = Form(...),
     file_name: str = Form(...),
+    column_mappings: str = Form(...),
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
     data_type = db.query(DataType).filter(DataType.id == data_type_id).first()
     if not data_type:
         raise HTTPException(404, "数据表不存在")
-    import tempfile as tf
-    with tf.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
+    mappings = json.loads(column_mappings)
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
         tmp.write(file.file.read())
         tmp_path = tmp.name
     try:
         record = service.import_file(
             db=db, file_path=tmp_path, data_type_id=data_type_id,
-            period=period, file_name=file_name, table_name=data_type.table_name
+            period=period, file_name=file_name, table_name=data_type.table_name,
+            column_mappings=mappings
         )
         return {"message": "导入成功", "row_count": record.row_count}
     except Exception as e:
