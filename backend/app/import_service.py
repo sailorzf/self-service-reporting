@@ -89,7 +89,7 @@ Rules:
 - For columns that cannot be mapped, set db_column to null
 
 Example output:
-[{"excel_column": "销售额", "db_column": "revenue", "confidence": 0.95}]"""
+[{{"excel_column": "销售额", "db_column": "revenue", "confidence": 0.95}}]"""
         try:
             from app.llm_adapter import DashScopeProvider
             llm = DashScopeProvider()
