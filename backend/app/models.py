@@ -15,7 +15,7 @@ class Report(Base):
     __tablename__ = "reports"
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(255), nullable=False)
-    data_type_id = Column(Integer, ForeignKey("data_types.id"), nullable=False)
+    data_type_id = Column(Integer, ForeignKey("data_types.id", ondelete="CASCADE"), nullable=False)
     config_json = Column(JSON, nullable=False)
     shared_token = Column(String(64), nullable=True)
     token_expires = Column(DateTime, nullable=True)
@@ -26,7 +26,7 @@ class Report(Base):
 class ImportRecord(Base):
     __tablename__ = "import_records"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    data_type_id = Column(Integer, ForeignKey("data_types.id"), nullable=False)
+    data_type_id = Column(Integer, ForeignKey("data_types.id", ondelete="CASCADE"), nullable=False)
     period = Column(String(7), nullable=False)
     file_name = Column(String(255), nullable=False)
     row_count = Column(Integer, default=0)
@@ -40,7 +40,7 @@ class AISession(Base):
     __tablename__ = "ai_sessions"
     id = Column(Integer, primary_key=True, autoincrement=True)
     session_id = Column(String(64), unique=True, nullable=False)
-    data_type_id = Column(Integer, ForeignKey("data_types.id"), nullable=False)
+    data_type_id = Column(Integer, ForeignKey("data_types.id", ondelete="CASCADE"), nullable=False)
     user = Column(String(50), default="anonymous")
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
