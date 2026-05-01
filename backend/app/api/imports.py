@@ -35,7 +35,7 @@ def confirm_import(
 ):
     data_type = db.query(DataType).filter(DataType.id == data_type_id).first()
     if not data_type:
-        raise HTTPException(404, "数据类型不存在")
+        raise HTTPException(404, "数据表不存在")
     import tempfile as tf
     with tf.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
         tmp.write(file.file.read())

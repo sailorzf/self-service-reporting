@@ -4,7 +4,7 @@
       <el-col :span="5">
         <el-card>
           <template #header>字段面板</template>
-          <el-select v-model="dataTypeId" placeholder="选择数据类型" style="margin-bottom: 12px;">
+          <el-select v-model="dataTypeId" placeholder="选择数据表" style="margin-bottom: 12px;">
             <el-option v-for="dt in dataTypes" :key="dt.id" :label="dt.name" :value="dt.id" />
           </el-select>
           <el-checkbox-group v-model="selectedColumns">
@@ -70,7 +70,7 @@ const availableColumns = computed(() => {
 onMounted(async () => { dataTypes.value = await api.getDataTypes() })
 
 async function runQuery() {
-  if (!dataTypeId.value || selectedColumns.value.length === 0) { ElMessage.warning('请选择数据类型和字段'); return }
+  if (!dataTypeId.value || selectedColumns.value.length === 0) { ElMessage.warning('请选择数据表和字段'); return }
   loading.value = true
   const config = {
     columns: selectedColumns.value,
@@ -87,7 +87,7 @@ async function runQuery() {
 }
 
 async function initAISession() {
-  if (!dataTypeId.value) { ElMessage.warning('请先选择数据类型'); return }
+  if (!dataTypeId.value) { ElMessage.warning('请先选择数据表'); return }
   const res = await api.createAISession({ data_type_id: dataTypeId.value })
   aiSessionId.value = res.session_id
 }

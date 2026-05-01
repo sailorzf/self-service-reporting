@@ -15,6 +15,7 @@ async function request(path, options = {}) {
 export const api = {
   getDataTypes: () => request('/data-types/'),
   createDataType: (data) => request('/data-types/', { method: 'POST', body: JSON.stringify(data) }),
+  deleteDataType: (id) => request(`/data-types/${id}`, { method: 'DELETE' }),
 
   uploadPreview: async (file) => {
     const formData = new FormData()

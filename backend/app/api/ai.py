@@ -12,7 +12,7 @@ router = APIRouter()
 def create_session(req: AISessionCreate, db: Session = Depends(get_db)):
     dt = db.query(DataType).filter(DataType.id == req.data_type_id).first()
     if not dt:
-        raise HTTPException(404, "数据类型不存在")
+        raise HTTPException(404, "数据表不存在")
     session_id = req.session_id or str(uuid.uuid4())
     session = AISession(session_id=session_id, data_type_id=req.data_type_id)
     db.add(session)
@@ -27,7 +27,7 @@ def send_message(session_id: str, req: AIMessageRequest, db: Session = Depends(g
         raise HTTPException(404, "会话不存在")
     dt = db.query(DataType).filter(DataType.id == session.data_type_id).first()
     if not dt:
-        raise HTTPException(404, "数据类型不存在")
+        raise HTTPException(404, "数据表不存在")
     messages = db.query(AIMessage).filter(AIMessage.session_id == session_id).order_by(AIMessage.created_at.asc()).all()
     conversation = [{"role": m.role, "content": m.content} for m in messages]
     user_msg = AIMessage(session_id=session_id, role="user", content=req.content)

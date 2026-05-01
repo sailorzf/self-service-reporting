@@ -16,7 +16,7 @@ router = APIRouter()
 def create_report(report: ReportCreate, db: Session = Depends(get_db)):
     dt = db.query(DataType).filter(DataType.id == report.data_type_id).first()
     if not dt:
-        raise HTTPException(404, "数据类型不存在")
+        raise HTTPException(404, "数据表不存在")
     r = Report(name=report.name, data_type_id=report.data_type_id, config_json=report.config_json.model_dump())
     db.add(r)
     db.commit()
@@ -35,13 +35,13 @@ def execute_query(query: QueryExecute, db: Session = Depends(get_db)):
         for t in query.config.tables:
             dt = db.query(DataType).filter(DataType.id == t.data_type_id).first()
             if not dt:
-                raise HTTPException(404, f"数据类型 {t.data_type_id} 不存在")
+                raise HTTPException(404, f"数据表 {t.data_type_id} 不存在")
             table_map[t.alias] = dt.table_name
         return engine.execute_multi(query.config, table_map)
     if query.data_type_id:
         dt = db.query(DataType).filter(DataType.id == query.data_type_id).first()
         if not dt:
-            raise HTTPException(404, "数据类型不存在")
+            raise HTTPException(404, "数据表不存在")
         return engine.execute(query.config, dt.table_name)
     raise HTTPException(400, "需要指定data_type_id或tables")
 
@@ -52,7 +52,7 @@ def execute_report(report_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "报表不存在")
     dt = db.query(DataType).filter(DataType.id == r.data_type_id).first()
     if not dt:
-        raise HTTPException(404, "数据类型不存在")
+        raise HTTPException(404, "数据表不存在")
     engine = ReportEngine(db)
     config = ReportConfig(**r.config_json)
     return engine.execute(config, dt.table_name)

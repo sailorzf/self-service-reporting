@@ -17,7 +17,7 @@ def view_share(token: str, db: Session = Depends(get_db)):
         raise HTTPException(403, "分享链接已过期")
     dt = db.query(DataType).filter(DataType.id == report.data_type_id).first()
     if not dt:
-        raise HTTPException(404, "数据类型不存在")
+        raise HTTPException(404, "数据表不存在")
     engine = ReportEngine(db)
     config = ReportConfig(**report.config_json)
     return engine.execute(config, dt.table_name)

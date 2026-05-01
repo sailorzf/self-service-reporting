@@ -2,8 +2,8 @@
   <div>
     <h3>数据导入</h3>
     <el-form label-width="100px">
-      <el-form-item label="数据类型">
-        <el-select v-model="dataTypeId" placeholder="选择数据类型">
+      <el-form-item label="数据表">
+        <el-select v-model="dataTypeId" placeholder="选择数据表">
           <el-option v-for="dt in dataTypes" :key="dt.id" :label="dt.name" :value="dt.id" />
         </el-select>
       </el-form-item>
