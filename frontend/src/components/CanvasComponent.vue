@@ -2,7 +2,6 @@
   <div
     class="canvas-component"
     :class="{ selected }"
-    @click.stop="$emit('click', component.id)"
   >
     <!-- Header bar -->
     <div class="component-header" :style="{ backgroundColor: component.theme_color || '#409eff' }">
@@ -53,8 +52,6 @@ const props = defineProps({
   data: { type: Object, default: null },
   selected: { type: Boolean, default: false }
 })
-
-defineEmits(['click'])
 
 const chartRef = ref(null)
 let chart = null
@@ -160,8 +157,8 @@ watch(() => props.data, () => {
   border-radius: 4px;
   transition: box-shadow 0.2s, border-color 0.2s;
   overflow: hidden;
-  cursor: pointer;
   user-select: none;
+  pointer-events: none;
 }
 
 .canvas-component:hover {

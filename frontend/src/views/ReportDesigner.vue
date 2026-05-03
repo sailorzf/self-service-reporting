@@ -43,8 +43,7 @@
           class="canvas-item"
           :class="{ selected: comp.id === selectedId }"
           :style="{
-            left: comp.x + 'px',
-            top: comp.y + 'px',
+            transform: `translate(${comp.x}px, ${comp.y}px)`,
             width: comp.width + 'px',
             height: comp.height + 'px'
           }"
@@ -444,16 +443,21 @@ function initInteractForComponent(comp) {
     const el = componentRefs[comp.id]
     if (!el) return
 
+    const interactInstance = interact(el)
+
     // Draggable
-    interact(el).draggable({
+    interactInstance.draggable({
       inertia: true,
       modifiers: [
         interact.modifiers.restrictRect({
-          restriction: canvasArea.value,
-          endOnly: true
+          restriction: 'parent',
+          endOnly: false
         })
       ],
       listeners: {
+        start() {
+          selectComponent(comp.id)
+        },
         move(event) {
           comp.x = (comp.x || 0) + event.dx
           comp.y = (comp.y || 0) + event.dy
@@ -464,20 +468,17 @@ function initInteractForComponent(comp) {
     })
 
     // Resizable
-    interact(el).resizable({
-      edges: { bottom: true, right: true },
+    interactInstance.resizable({
+      edges: { bottom: '.resize-handle', right: '.resize-handle' },
       modifiers: [
         interact.modifiers.restrictSize({
-          container: canvasArea.value,
           min: { width: 150, height: 80 }
         })
       ],
       listeners: {
         move(event) {
-          comp.width = event.rect.width
-          comp.height = event.rect.height
-          comp.x += event.deltaRect.left
-          comp.y += event.deltaRect.top
+          comp.width = Math.max(150, event.rect.width)
+          comp.height = Math.max(80, event.rect.height)
         }
       }
     })
@@ -635,10 +636,13 @@ watch(chatMessages, () => {
 .canvas-item {
   position: absolute;
   z-index: 1;
+  pointer-events: auto;
+  cursor: grab;
 }
 
 .canvas-item.selected {
   z-index: 10;
+  cursor: grabbing;
 }
 
 .resize-handle {
