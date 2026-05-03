@@ -235,6 +235,29 @@ const loading = ref(false)
 const sqlExpanded = ref(false)
 const reportId = ref(route.params.id ? Number(route.params.id) : null)
 const loadedReportName = ref('')
+const canvasWidth = ref(1200)
+const canvasHeight = ref(800)
+const loadedComponents = ref(false)
+
+// Watch for route changes to load different reports
+watch(() => route.params.id, async (newId) => {
+  if (newId) {
+    reportId.value = Number(newId)
+    // Reset state before loading new report
+    components.value = []
+    selectedId.value = null
+    componentData.value = {}
+    loadedComponents.value = true
+    await loadDataTypes()
+    await loadReport(reportId.value)
+    nextTick(() => initAllInteract())
+  } else {
+    reportId.value = null
+    loadedReportName.value = ''
+    components.value = []
+    selectedId.value = null
+  }
+}, { immediate: false })
 
 // Refs
 const canvasArea = ref(null)
@@ -476,8 +499,13 @@ async function loadReport(id) {
   }
   loadedReportName.value = report.name
   const config = report.config_json
-  if (config && config.canvas && config.canvas.components) {
-    components.value = config.canvas.components
+  if (config && config.components) {
+    // Canvas format: { canvas: {...}, components: [...] }
+    components.value = config.components
+    if (config.canvas) {
+      canvasWidth.value = config.canvas.width || 1200
+      canvasHeight.value = config.canvas.height || 800
+    }
   } else if (config && config.columns) {
     // Migrate old format to single table component
     const comp = {

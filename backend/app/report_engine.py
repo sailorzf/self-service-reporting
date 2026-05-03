@@ -228,10 +228,10 @@ class DataFormatter:
             return {"categories": [], "series": []}
 
         # Detect long format: (time/dimension, group_name, value)
-        # Pivot to wide format: categories = unique first column, series = one per group
+        # Aggregate and pivot to wide format: categories = unique first col, series = one per group
         if len(headers) == 3 and len(rows) > 0:
             col1, col2, col3 = headers
-            # Check if col3 is numeric and col2 is categorical (not purely numeric)
+            # Check if col3 is numeric and col2 is categorical
             is_col3_numeric = True
             is_col2_categorical = False
             for row in rows:
@@ -243,7 +243,6 @@ class DataFormatter:
                         is_col3_numeric = False
                         break
             if is_col3_numeric:
-                # Check if col2 has non-numeric values (categorical)
                 non_numeric_count = 0
                 for row in rows:
                     v = row[1]
@@ -253,11 +252,10 @@ class DataFormatter:
                     is_col2_categorical = True
 
             if is_col3_numeric and is_col2_categorical:
-                # Long format detected - pivot to wide format
-                categories_map = {}  # col1 value -> order index
+                # Long format - pivot with aggregation (SUM)
+                categories_map = {}
                 category_list = []
-                series_map = {}  # col2 value -> list of values
-                # Preserve order of appearance for categories
+                series_map = {}
                 cat_order = 0
                 for row in rows:
                     cat_key = str(row[0])
@@ -278,19 +276,17 @@ class DataFormatter:
                         category_list.append(cat_key)
                         cat_order += 1
                     if group not in series_map:
-                        series_map[group] = [0] * len(category_list)
-                    idx = categories_map[cat_key]
-                    # Extend series if needed (new category added)
+                        series_map[group] = [0.0] * len(category_list)
                     while len(series_map[group]) < len(category_list):
-                        series_map[group].append(0)
-                    series_map[group][idx] = val
+                        series_map[group].append(0.0)
+                    # Aggregate by SUM
+                    series_map[group][categories_map[cat_key]] += val
 
                 series = []
                 for name, data in series_map.items():
-                    # Pad series to match category_list length
                     series.append({
                         "name": name,
-                        "data": data[:len(category_list)]
+                        "data": [round(v, 2) if isinstance(v, float) else v for v in data[:len(category_list)]]
                     })
 
                 return {"categories": category_list, "series": series}
@@ -310,7 +306,6 @@ class DataFormatter:
                     try:
                         data.append(float(val))
                     except (ValueError, TypeError):
-                        # Skip non-numeric columns (datetime, strings, etc.)
                         data = None
                         break
             if data is not None:

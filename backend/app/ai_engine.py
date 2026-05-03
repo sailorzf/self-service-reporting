@@ -24,11 +24,12 @@ class AIEngine:
 {history if history else "新对话"}
 
 任务:
-1. 理解用户意图，提取: 时间范围、筛选条件、聚合指标、分组维度
-2. 对于时序趋势图（如"按时间生成折线图"），SQL应包含时间列和分组列，不做跨分组的聚合。
-   例如: SELECT DATE_FORMAT(created_at, '%Y-%m') AS month, station_name, SUM(service_fee)
-         GROUP BY month, station_name ORDER BY month, station_name
-   这样每个分组（充电站）在每个时间点都有一行数据，前端会自动生成多条折线。
+1. 理解用户意图，提取: 时间范围、筛选条件、指标字段、分组维度
+2. 对于图表展示需求，SQL应查询原始明细数据，不做GROUP BY聚合。
+   前端会自动按时间和分组维度进行聚合和作图。
+   例如用户说"各充电站的服务费收入折线图"，SQL应为:
+   SELECT statistics_date, station_name, service_fee FROM data_test_data ORDER BY statistics_date
+   而不是 GROUP BY 聚合后的数据。只需 SELECT 时间列、分组列、指标列即可。
 3. 信息不完整或不明确时，在 "clarification" 字段中提出追问（最多一个）
 4. 信息足够时，生成 MySQL 查询语句放在 "sql" 字段中
 5. 对查询结果做简要分析，放在 "analysis" 字段中
@@ -60,11 +61,10 @@ class AIEngine:
 
 任务:
 1. 根据用户问题，自动选择最相关的数据表
-2. 理解用户意图，提取: 时间范围、筛选条件、聚合指标、分组维度
-3. 对于时序趋势图（如"按时间生成折线图"），SQL应包含时间列和分组列，不做跨分组的聚合。
-   例如: SELECT DATE_FORMAT(created_at, '%Y-%m') AS month, station_name, SUM(service_fee)
-         GROUP BY month, station_name ORDER BY month, station_name
-   这样每个分组（充电站）在每个时间点都有一行数据，前端会自动生成多条折线。
+2. 理解用户意图，提取: 时间范围、筛选条件、指标字段、分组维度
+3. 对于图表展示需求，SQL应查询原始明细数据，不做GROUP BY聚合。
+   前端会自动按时间和分组维度进行聚合和作图。
+   例如: SELECT statistics_date, station_name, service_fee FROM data_test_data ORDER BY statistics_date
 4. 信息不完整或不明确时，在 "clarification" 字段中提出追问（最多一个）
 5. 信息足够时，生成 MySQL 查询语句放在 "sql" 字段中
 6. 对查询结果做简要分析，放在 "analysis" 字段中
