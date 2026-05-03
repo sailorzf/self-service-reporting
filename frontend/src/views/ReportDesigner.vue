@@ -171,7 +171,7 @@
             v-model="chatInput"
             placeholder="输入问题..."
             size="small"
-            @keyup.enter="sendChatMessage"
+            @keydown.enter="sendChatMessage"
           />
           <el-button type="primary" size="small" @click="sendChatMessage" :loading="chatLoading">
             发送
@@ -351,7 +351,8 @@ async function saveReport() {
 // AI Chat
 async function sendChatMessage() {
   const content = chatInput.value.trim()
-  if (!content || !aiSessionId.value) return
+  if (!content) { ElMessage.warning('请输入内容'); return }
+  if (!aiSessionId.value) { ElMessage.error('AI会话未初始化，请刷新页面重试'); return }
 
   chatMessages.value.push({ role: 'user', content })
   chatInput.value = ''
@@ -427,12 +428,18 @@ async function loadReport(id) {
 async function initAISession() {
   try {
     const res = await api.createAISession({})
-    aiSessionId.value = res.session_id
-  } catch (e) {
-    // If session creation fails, try with a data_type_id
-    if (dataTypes.value.length > 0) {
-      const res = await api.createAISession({ data_type_id: dataTypes.value[0].id })
+    if (res && res.session_id) {
       aiSessionId.value = res.session_id
+    } else {
+      throw new Error('返回响应无效')
+    }
+  } catch (e) {
+    // Fallback: try with a data_type_id
+    try {
+      const res2 = await api.createAISession({ data_type_id: dataTypes.value[0]?.id })
+      aiSessionId.value = res2.session_id
+    } catch (e2) {
+      ElMessage.error('AI会话创建失败: ' + e2.message)
     }
   }
 }
