@@ -42,7 +42,7 @@ def execute_query(query: QueryExecute, db: Session = Depends(get_db)):
         result = db.execute(text(sql))
         rows = result.fetchall()
         headers = list(result.keys())
-        chart_data = DataFormatter.to_chart(rows, headers) if rows else None
+        chart_data = DataFormatter.to_chart(headers, rows) if rows else None
         return QueryResult(
             headers=headers,
             rows=[list(r) for r in rows],

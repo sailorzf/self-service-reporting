@@ -350,15 +350,18 @@ async function saveReport() {
 
 // AI Chat
 async function sendChatMessage() {
-  const content = chatInput.value.trim()
+  console.log('[chat] sendChatMessage called, input:', chatInput.value, 'sessionId:', aiSessionId.value)
+  const content = chatInput.value?.trim()
   if (!content) { ElMessage.warning('请输入内容'); return }
   if (!aiSessionId.value) { ElMessage.error('AI会话未初始化，请刷新页面重试'); return }
 
+  console.log('[chat] Sending message:', content)
   chatMessages.value.push({ role: 'user', content })
   chatInput.value = ''
   chatLoading.value = true
   try {
     const res = await api.sendAIMessage(aiSessionId.value, content)
+    console.log('[chat] Response:', res)
     const aiMsg = {
       role: 'ai',
       content: res.text || '',
@@ -374,6 +377,7 @@ async function sendChatMessage() {
       sqlExpanded.value = true
     }
   } catch (e) {
+    console.error('[chat] Error:', e)
     ElMessage.error(e.message)
   } finally {
     chatLoading.value = false
