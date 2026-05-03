@@ -123,10 +123,12 @@ function renderChart() {
   const rows = props.data.rows
   const xAxisData = rows.map(r => r[0])
   const type = props.component.type
+  const chartOpt = props.component.chart_options || {}
 
   if (type === 'pie') {
     const seriesData = rows.map(r => ({ name: String(r[0]), value: r[1] }))
     chart.setOption({
+      title: { text: chartOpt.title || '', show: !!chartOpt.title, left: 'center', textStyle: { fontSize: 14 } },
       tooltip: { trigger: 'item' },
       legend: { bottom: '0%' },
       series: [{
@@ -143,11 +145,24 @@ function renderChart() {
     }))
 
     chart.setOption({
+      title: { text: chartOpt.title || '', show: !!chartOpt.title, left: 'center', textStyle: { fontSize: 14 } },
       tooltip: { trigger: 'axis' },
       legend: { data: headers.slice(1), bottom: '0%' },
-      xAxis: { type: 'category', data: xAxisData },
-      yAxis: { type: 'value' },
-      series
+      xAxis: {
+        type: 'category',
+        data: xAxisData,
+        name: chartOpt.xAxisName || '',
+        nameLocation: 'middle',
+        nameGap: 25
+      },
+      yAxis: {
+        type: 'value',
+        name: chartOpt.yAxisName || '',
+        nameLocation: 'middle',
+        nameGap: 30
+      },
+      series,
+      grid: { left: '10%', right: '5%', bottom: chartOpt.xAxisName ? '15%' : '10%', top: chartOpt.title ? '20%' : '5%' }
     }, true)
   }
 }
@@ -161,9 +176,21 @@ async function initChart() {
   renderChart()
 }
 
-onMounted(() => {
+// ResizeObserver for chart auto-resize
+let resizeObserver = null
+
+function initResizeObserver() {
+  if (!chartRef.value || !chart) return
+  resizeObserver = new ResizeObserver(() => {
+    if (chart) chart.resize()
+  })
+  resizeObserver.observe(chartRef.value)
+}
+
+onMounted(async () => {
   if (['bar', 'line', 'pie'].includes(props.component.type)) {
-    initChart()
+    await initChart()
+    initResizeObserver()
   }
 })
 
@@ -172,9 +199,20 @@ onBeforeUnmount(() => {
     chart.dispose()
     chart = null
   }
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
 })
 
 watch(() => props.data, () => {
+  if (['bar', 'line', 'pie'].includes(props.component.type)) {
+    renderChart()
+  }
+}, { deep: true })
+
+// Re-render when chart_options change
+watch(() => props.component?.chart_options, () => {
   if (['bar', 'line', 'pie'].includes(props.component.type)) {
     renderChart()
   }

@@ -81,8 +81,11 @@
             :selected="comp.id === selectedId"
             @action="handleCompAction"
           />
-          <!-- Resize handle -->
-          <div v-if="comp.id === selectedId && !comp.locked" class="resize-handle"></div>
+          <!-- Resize handles (4 edges) -->
+          <template v-if="comp.id === selectedId && !comp.locked">
+            <div class="resize-handle resize-handle-right"></div>
+            <div class="resize-handle resize-handle-bottom"></div>
+          </template>
         </div>
       </div>
     </div>
@@ -116,6 +119,37 @@
                 />
               </el-select>
             </div>
+
+            <!-- Chart type settings -->
+            <template v-if="['bar', 'line', 'pie'].includes(selectedComponent.type)">
+              <div class="setting-group">
+                <label class="group-label">图表选项</label>
+                <div class="setting-item">
+                  <label>标题</label>
+                  <el-input
+                    v-model="chartOpts.title"
+                    size="small"
+                    placeholder="图表标题（留空不显示）"
+                  />
+                </div>
+                <div class="setting-item" v-if="selectedComponent.type !== 'pie'">
+                  <label>X轴名称</label>
+                  <el-input
+                    v-model="chartOpts.xAxisName"
+                    size="small"
+                    placeholder="横轴名称"
+                  />
+                </div>
+                <div class="setting-item" v-if="selectedComponent.type !== 'pie'">
+                  <label>Y轴名称</label>
+                  <el-input
+                    v-model="chartOpts.yAxisName"
+                    size="small"
+                    placeholder="纵轴名称"
+                  />
+                </div>
+              </div>
+            </template>
 
             <div class="setting-item">
               <label>SQL</label>
@@ -280,6 +314,28 @@ const componentTypes = [
 // Computed
 const selectedComponent = computed(() => {
   return components.value.find(c => c.id === selectedId.value) || null
+})
+
+// Proxy for component.chart_options to enable v-model binding
+const chartOpts = computed({
+  get() {
+    const comp = selectedComponent.value
+    if (!comp) return { title: '', xAxisName: '', yAxisName: '' }
+    if (!comp.chart_options) comp.chart_options = {}
+    return {
+      title: comp.chart_options.title || '',
+      xAxisName: comp.chart_options.xAxisName || '',
+      yAxisName: comp.chart_options.yAxisName || ''
+    }
+  },
+  set(val) {
+    const comp = selectedComponent.value
+    if (!comp) return
+    if (!comp.chart_options) comp.chart_options = {}
+    comp.chart_options.title = val.title || undefined
+    comp.chart_options.xAxisName = val.xAxisName || undefined
+    comp.chart_options.yAxisName = val.yAxisName || undefined
+  }
 })
 
 // Helpers
@@ -690,10 +746,10 @@ function initInteractForComponent(comp) {
       }
     })
 
-    // Resizable
+    // Resizable - right and bottom edges
     interactInstance.resizable({
       enabled: () => !comp.locked,
-      edges: { bottom: '.resize-handle', right: '.resize-handle' },
+      edges: { right: '.resize-handle-right', bottom: '.resize-handle-bottom' },
       modifiers: [
         interact.modifiers.restrictSize({
           min: { width: 150, height: 80 }
@@ -895,21 +951,32 @@ watch(chatMessages, () => {
 
 .resize-handle {
   position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 14px;
-  height: 14px;
-  cursor: nwse-resize;
   z-index: 20;
 }
 
-.resize-handle::after {
+.resize-handle-right {
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+}
+
+.resize-handle-bottom {
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  cursor: ns-resize;
+}
+
+.resize-handle-bottom::after {
   content: '';
   position: absolute;
   bottom: 2px;
   right: 2px;
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-right: 2px solid #409eff;
   border-bottom: 2px solid #409eff;
 }
@@ -949,6 +1016,21 @@ watch(chatMessages, () => {
   font-weight: 500;
   color: #606266;
   margin-bottom: 4px;
+}
+
+.setting-group {
+  margin-bottom: 14px;
+  padding: 10px;
+  background: #f5f7fa;
+  border-radius: 4px;
+}
+
+.group-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #409eff;
+  margin-bottom: 6px;
 }
 
 /* SQL Editor */
