@@ -5,6 +5,7 @@ from datetime import datetime
 class DataTypeCreate(BaseModel):
     code: str
     name: str
+    database_name: Optional[str] = None
     table_name: str
     columns_json: list[dict[str, Any]]
 
@@ -12,6 +13,7 @@ class DataTypeResponse(BaseModel):
     id: int
     code: str
     name: str
+    database_name: Optional[str] = None
     table_name: str
     columns_json: list[dict[str, Any]]
     created_at: Optional[datetime] = None

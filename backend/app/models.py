@@ -7,6 +7,7 @@ class DataType(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     code = Column(String(50), unique=True, nullable=False)
     name = Column(String(255), nullable=False)
+    database_name = Column(String(255), nullable=True)
     table_name = Column(String(255), nullable=False)
     columns_json = Column(JSON, nullable=False)
     created_at = Column(DateTime, server_default=func.now())

@@ -99,13 +99,14 @@ def execute_query(query: QueryExecute, db: Session = Depends(get_db)):
             dt = db.query(DataType).filter(DataType.id == t.data_type_id).first()
             if not dt:
                 raise HTTPException(404, f"数据表 {t.data_type_id} 不存在")
-            table_map[t.alias] = dt.table_name
+            db_prefix = f"{dt.database_name}." if dt.database_name else ""
+            table_map[t.alias] = f"{db_prefix}{dt.table_name}"
         return engine.execute_multi(query.config, table_map)
     if query.data_type_id and query.config:
         dt = db.query(DataType).filter(DataType.id == query.data_type_id).first()
         if not dt:
             raise HTTPException(404, "数据表不存在")
-        return engine.execute(query.config, dt.table_name)
+        return engine.execute(query.config, dt.table_name, dt.database_name)
     raise HTTPException(400, "需要指定data_type_id、tables或raw_sql")
 
 @router.post("/{report_id}/execute", response_model=QueryResult)
@@ -118,7 +119,7 @@ def execute_report(report_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "数据表不存在")
     engine = ReportEngine(db)
     config = ReportConfig(**r.config_json)
-    return engine.execute(config, dt.table_name)
+    return engine.execute(config, dt.table_name, dt.database_name)
 
 @router.post("/{report_id}/share")
 def share_report(report_id: int, days: int = Query(default=7), db: Session = Depends(get_db)):
@@ -168,7 +169,7 @@ def export_report(report_id: int, db: Session = Depends(get_db)):
         if not dt:
             raise HTTPException(404, "数据表不存在")
         engine = ReportEngine(db)
-        result = engine.execute(ReportConfig(**config), dt.table_name)
+        result = engine.execute(ReportConfig(**config), dt.table_name, dt.database_name)
         wb = Workbook()
         ws = wb.active
         ws.append(result["headers"])

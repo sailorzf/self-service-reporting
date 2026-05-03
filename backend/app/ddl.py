@@ -17,7 +17,13 @@ def mysql_type(col: dict) -> str:
     return "VARCHAR(255)"
 
 
-def columns_to_mysql_ddl(columns_json: list[dict], table_name: str) -> str:
+def _full_table_name(table_name: str, database_name: str | None = None) -> str:
+    if database_name:
+        return f"`{database_name}`.`{table_name}`"
+    return f"`{table_name}`"
+
+
+def columns_to_mysql_ddl(columns_json: list[dict], table_name: str, database_name: str | None = None) -> str:
     lines = []
     for col in columns_json:
         col_def = f"  `{col['name']}` {mysql_type(col)}"
@@ -29,19 +35,19 @@ def columns_to_mysql_ddl(columns_json: list[dict], table_name: str) -> str:
     lines.append("  `uploaded_at` DATETIME DEFAULT NULL")
     lines.append("  `uploaded_by` VARCHAR(100) DEFAULT NULL")
     lines.append("  `batch_id` VARCHAR(64) DEFAULT NULL")
-    return f"CREATE TABLE IF NOT EXISTS `{table_name}` (\n" + ",\n".join(lines) + "\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"
+    return f"CREATE TABLE IF NOT EXISTS {_full_table_name(table_name, database_name)} (\n" + ",\n".join(lines) + "\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"
 
 
-def create_table_if_not_exists(table_name: str, columns_json: list[dict]):
+def create_table_if_not_exists(table_name: str, columns_json: list[dict], database_name: str | None = None):
     engine = create_engine(settings.database_url)
-    ddl = columns_to_mysql_ddl(columns_json, table_name)
+    ddl = columns_to_mysql_ddl(columns_json, table_name, database_name)
     with engine.connect() as conn:
         conn.execute(text(ddl))
         conn.commit()
 
 
-def drop_table_if_exists(table_name: str):
+def drop_table_if_exists(table_name: str, database_name: str | None = None):
     engine = create_engine(settings.database_url)
     with engine.connect() as conn:
-        conn.execute(text(f"DROP TABLE IF EXISTS `{table_name}`"))
+        conn.execute(text(f"DROP TABLE IF EXISTS {_full_table_name(table_name, database_name)}"))
         conn.commit()

@@ -79,43 +79,10 @@
             :component="comp"
             :data="componentData[comp.id]"
             :selected="comp.id === selectedId"
+            @action="handleCompAction"
           />
           <!-- Resize handle -->
-          <div v-if="comp.id === selectedId" class="resize-handle"></div>
-          <!-- Action button (appears on select) -->
-          <div v-if="comp.id === selectedId && !comp.locked" class="comp-action-btn">
-            <el-dropdown trigger="click" @command="(cmd) => handleCompAction(cmd, comp.id)">
-              <el-button size="small" circle @click.stop>
-                <el-icon><MoreFilled /></el-icon>
-              </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="copy">
-                    <el-icon><CopyDocument /></el-icon> 复制
-                  </el-dropdown-item>
-                  <el-dropdown-item command="rename">
-                    <el-icon><Edit /></el-icon> 重命名
-                  </el-dropdown-item>
-                  <el-dropdown-item command="lock">
-                    <el-icon><Lock /></el-icon> 锁定
-                  </el-dropdown-item>
-                  <el-dropdown-item command="bringFront">
-                    <el-icon><Top /></el-icon> 置于顶层
-                  </el-dropdown-item>
-                  <el-dropdown-item command="sendBack">
-                    <el-icon><Bottom /></el-icon> 置于底层
-                  </el-dropdown-item>
-                  <el-dropdown-item command="delete" divided>
-                    <el-icon><Delete /></el-icon> 删除
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </div>
-          <!-- Lock indicator -->
-          <div v-if="comp.locked" class="comp-lock-indicator">
-            <el-icon><Lock /></el-icon>
-          </div>
+          <div v-if="comp.id === selectedId && !comp.locked" class="resize-handle"></div>
         </div>
       </div>
     </div>
@@ -250,7 +217,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowDown, MoreFilled, CopyDocument, Edit, Lock, Top, Bottom, Delete } from '@element-plus/icons-vue'
+import { ArrowDown } from '@element-plus/icons-vue'
 import { api } from '../api'
 import CanvasComponent from '../components/CanvasComponent.vue'
 import interact from 'interactjs'
@@ -395,12 +362,20 @@ function handleCompAction(cmd, compId) {
     case 'lock':
       comp.locked = !comp.locked
       break
-    case 'bringFront':
-      comp.zIndex = Math.max(...components.value.map(c => c.zIndex || 1)) + 1
+    case 'bringFront': {
+      const maxZ = Math.max(...components.value.map(c => c.zIndex || 1))
+      comp.zIndex = maxZ + 1
+      // Force Vue reactivity update
+      components.value = [...components.value]
       break
-    case 'sendBack':
-      comp.zIndex = Math.min(...components.value.map(c => c.zIndex || 1)) - 1
+    }
+    case 'sendBack': {
+      const minZ = Math.min(...components.value.map(c => c.zIndex || 1))
+      comp.zIndex = minZ - 1
+      // Force Vue reactivity update
+      components.value = [...components.value]
       break
+    }
     case 'delete':
       deleteComponent(compId)
       break
@@ -691,9 +666,10 @@ function initInteractForComponent(comp) {
 
     const interactInstance = interact(el)
 
-    // Draggable
+    // Draggable - only start from header
     interactInstance.draggable({
       enabled: () => !comp.locked,
+      allowFrom: '.comp-header-draggable',
       inertia: true,
       modifiers: [
         interact.modifiers.restrictRect({
@@ -906,12 +882,15 @@ watch(chatMessages, () => {
   position: absolute;
   z-index: 1;
   pointer-events: auto;
-  cursor: grab;
+  cursor: default;
 }
 
 .canvas-item.selected {
   z-index: 10;
-  cursor: grabbing;
+}
+
+.canvas-item.locked {
+  cursor: default;
 }
 
 .resize-handle {
@@ -933,56 +912,6 @@ watch(chatMessages, () => {
   height: 8px;
   border-right: 2px solid #409eff;
   border-bottom: 2px solid #409eff;
-}
-
-/* Action button on selected component */
-.comp-action-btn {
-  position: absolute;
-  top: -14px;
-  right: -14px;
-  z-index: 30;
-}
-
-.comp-action-btn :deep(.el-button) {
-  background: #fff;
-  border-color: #409eff;
-  color: #409eff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
-  width: 28px;
-  height: 28px;
-  min-height: 28px;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Lock indicator */
-.comp-lock-indicator {
-  position: absolute;
-  top: -14px;
-  right: -14px;
-  z-index: 30;
-  background: #909399;
-  color: #fff;
-  border-radius: 50%;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
-}
-
-/* Locked component visual hint */
-.canvas-item.locked {
-  cursor: default;
-  opacity: 0.85;
-}
-
-.canvas-item.locked .canvas-component {
-  border-color: #909399 !important;
 }
 
 /* Right Panel */

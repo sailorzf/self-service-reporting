@@ -8,6 +8,12 @@
     <el-table :data="tables" border>
       <el-table-column prop="code" label="标识" width="150" />
       <el-table-column prop="name" label="名称" />
+      <el-table-column prop="database_name" label="数据库" width="120">
+        <template #default="{ row }">
+          <span v-if="row.database_name">{{ row.database_name }}</span>
+          <span v-else class="text-muted">默认</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="table_name" label="物理表名" width="200" />
       <el-table-column label="字段" width="300">
         <template #default="{ row }">
@@ -54,6 +60,15 @@
                 </el-tooltip>
               </template>
               <el-input v-model="form.table_name" placeholder="MySQL中的实际表名，不能与已有表重名" />
+            </el-form-item>
+            <el-form-item>
+              <template #label>
+                <span>数据库名</span>
+                <el-tooltip content="可选。表所在的数据库名。留空表示使用当前连接的默认数据库" placement="top">
+                  <el-icon style="margin-left: 4px; color: #909399; cursor: help;"><QuestionFilled /></el-icon>
+                </el-tooltip>
+              </template>
+              <el-input v-model="form.database_name" placeholder="可选，留空表示使用默认数据库" />
             </el-form-item>
             <el-form-item label="字段定义">
               <div style="margin-bottom: 8px;">
@@ -137,6 +152,15 @@
                   </el-tooltip>
                 </template>
                 <el-input v-model="form.table_name" placeholder="自动填充，可修改，不能重复" />
+              </el-form-item>
+              <el-form-item>
+                <template #label>
+                  <span>数据库名</span>
+                  <el-tooltip content="可选。表所在的数据库名。留空表示使用当前连接的默认数据库" placement="top">
+                    <el-icon style="margin-left: 4px; color: #909399; cursor: help;"><QuestionFilled /></el-icon>
+                  </el-tooltip>
+                </template>
+                <el-input v-model="form.database_name" placeholder="可选，留空表示使用默认数据库" />
               </el-form-item>
             </el-form>
             <el-upload action="" :auto-upload="false" :on-change="handleExcelUpload" accept=".xlsx,.xls" drag :disabled="loading" :show-file-list="false">
@@ -225,6 +249,7 @@ const loading = ref(false)
 const form = ref({
   code: '',
   name: '',
+  database_name: '',
   table_name: '',
   columns_json: []
 })
@@ -241,7 +266,7 @@ async function loadTables() {
 }
 
 function resetForm() {
-  form.value = { code: '', name: '', table_name: '', columns_json: [] }
+  form.value = { code: '', name: '', database_name: '', table_name: '', columns_json: [] }
   createMode.value = 'manual'
   loading.value = false
 }
@@ -305,6 +330,7 @@ async function createTable() {
     await api.createDataType({
       code: form.value.code,
       name: form.value.name,
+      database_name: form.value.database_name || null,
       table_name: form.value.table_name,
       columns_json: form.value.columns_json
     })

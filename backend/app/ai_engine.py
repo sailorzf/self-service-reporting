@@ -14,10 +14,12 @@ class AIEngine:
     def build_system_prompt(self, data_type: DataType, conversation: list[dict]) -> str:
         fields = [f['name'] for f in data_type.columns_json]
         fields_str = ", ".join(fields)
+        db_prefix = f"{data_type.database_name}." if data_type.database_name else ""
+        table_ref = f"{db_prefix}{data_type.table_name}"
         history = ""
         for msg in conversation[-6:]:
             history += f"- {msg['role']}: {msg['content'][:200]}\n"
-        return f"""你是数据分析助手。用户正在查询数据集 "{data_type.name}" ({data_type.table_name})。
+        return f"""你是数据分析助手。用户正在查询数据集 "{data_type.name}" ({table_ref})。
 可用字段: {fields_str}
 
 当前对话上下文:
@@ -28,7 +30,7 @@ class AIEngine:
 2. 对于图表展示需求，SQL应查询原始明细数据，不做GROUP BY聚合。
    前端会自动按时间和分组维度进行聚合和作图。
    例如用户说"各充电站的服务费收入折线图"，SQL应为:
-   SELECT statistics_date, station_name, service_fee FROM data_test_data ORDER BY statistics_date
+   SELECT statistics_date, station_name, service_fee FROM {table_ref} ORDER BY statistics_date
    而不是 GROUP BY 聚合后的数据。只需 SELECT 时间列、分组列、指标列即可。
 3. 信息不完整或不明确时，在 "clarification" 字段中提出追问（最多一个）
 4. 信息足够时，生成 MySQL 查询语句放在 "sql" 字段中
@@ -47,7 +49,8 @@ class AIEngine:
         tables_info = []
         for dt in data_types:
             fields = [f['name'] for f in dt.columns_json]
-            tables_info.append(f"- 表名: {dt.table_name} ({dt.name}), 字段: {', '.join(fields)}")
+            db_prefix = f"{dt.database_name}." if dt.database_name else ""
+            tables_info.append(f"- 表名: {db_prefix}{dt.table_name} ({dt.name}), 字段: {', '.join(fields)}")
         tables_str = "\n".join(tables_info)
         history = ""
         for msg in conversation[-6:]:

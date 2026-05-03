@@ -20,7 +20,8 @@ class SQLBuilder:
         return f"'{str(val).replace(chr(39), chr(39)+chr(39))}'"
 
     @classmethod
-    def build(cls, config: ReportConfig, table_name: str) -> str:
+    def build(cls, config: ReportConfig, table_name: str, database_name: str | None = None) -> str:
+        full_table = f"`{database_name}`.`{table_name}`" if database_name else f"`{table_name}`"
         for col, func in config.aggregations.items():
             validate_aggregation(func)
         for f in config.filters:
@@ -41,7 +42,7 @@ class SQLBuilder:
             select_cols = ["*"]
 
         sql_parts = [f"SELECT {', '.join(select_cols)}"]
-        sql_parts.append(f"FROM {cls.escape_col(table_name)}")
+        sql_parts.append(f"FROM {full_table}")
 
         if config.filters:
             conditions = []
@@ -318,8 +319,8 @@ class ReportEngine:
     def __init__(self, db_session: Session):
         self.db = db_session
 
-    def execute(self, config: ReportConfig, table_name: str) -> dict:
-        sql = SQLBuilder.build(config, table_name)
+    def execute(self, config: ReportConfig, table_name: str, database_name: str | None = None) -> dict:
+        sql = SQLBuilder.build(config, table_name, database_name)
         validate_sql(sql)
         result = self.db.execute(text(sql))
         rows = result.fetchall()

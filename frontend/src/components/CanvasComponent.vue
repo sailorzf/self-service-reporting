@@ -4,9 +4,38 @@
     :class="{ selected }"
   >
     <!-- Header bar -->
-    <div class="component-header" :style="{ backgroundColor: component.theme_color || '#409eff' }">
+    <div class="component-header comp-header-draggable" :style="{ backgroundColor: component.theme_color || '#409eff' }">
       <span class="component-name">{{ component.name }}</span>
-      <span class="component-type-label">{{ typeLabel }}</span>
+      <span v-if="component.locked" class="lock-badge" title="已锁定">
+        <el-icon><Lock /></el-icon>
+      </span>
+      <el-dropdown trigger="click" @command="(cmd) => $emit('action', cmd, component.id)">
+        <span class="header-menu-btn" @click.stop>
+          <el-icon><MoreFilled /></el-icon>
+        </span>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item command="copy">
+              <el-icon><CopyDocument /></el-icon> 复制
+            </el-dropdown-item>
+            <el-dropdown-item command="rename">
+              <el-icon><Edit /></el-icon> 重命名
+            </el-dropdown-item>
+            <el-dropdown-item command="lock">
+              <el-icon><Lock /></el-icon> {{ component.locked ? '解锁' : '锁定' }}
+            </el-dropdown-item>
+            <el-dropdown-item command="bringFront">
+              <el-icon><Top /></el-icon> 置于顶层
+            </el-dropdown-item>
+            <el-dropdown-item command="sendBack">
+              <el-icon><Bottom /></el-icon> 置于底层
+            </el-dropdown-item>
+            <el-dropdown-item command="delete" divided>
+              <el-icon><Delete /></el-icon> 删除
+            </el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
     </div>
 
     <!-- Content area -->
@@ -45,7 +74,10 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { MoreFilled, CopyDocument, Edit, Lock, Top, Bottom, Delete } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
+
+defineEmits(['action'])
 
 const props = defineProps({
   component: { type: Object, required: true },
@@ -177,6 +209,8 @@ watch(() => props.data, () => {
   padding: 4px 8px;
   color: #fff;
   font-size: 12px;
+  cursor: grab;
+  pointer-events: auto;
 }
 
 .component-name {
@@ -184,6 +218,34 @@ watch(() => props.data, () => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.lock-badge {
+  flex-shrink: 0;
+  margin-left: 6px;
+  opacity: 0.7;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+}
+
+.header-menu-btn {
+  flex-shrink: 0;
+  margin-left: 6px;
+  cursor: pointer;
+  opacity: 0.75;
+  font-size: 14px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.header-menu-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .component-type-label {
