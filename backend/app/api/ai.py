@@ -59,7 +59,7 @@ def send_message(session_id: str, req: AIMessageRequest, db: Session = Depends(g
                 query_result = engine.execute_raw_sql(sql_text)
         except Exception as e:
             result["analysis"] = f"SQL执行出错: {e}"
-    assistant_content = result.get("analysis", result.get("clarification", ""))
+    assistant_content = result.get("analysis") or result.get("clarification") or "好的，已收到你的问题。"
     assistant_msg = AIMessage(session_id=session_id, role="assistant", content=assistant_content, sql_query=sql_text, result_preview=query_result)
     db.add(assistant_msg)
     db.commit()
