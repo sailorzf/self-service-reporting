@@ -47,7 +47,14 @@ const reports = ref([])
 const result = ref(null)
 const currentChartType = ref('table')
 
-onMounted(async () => { reports.value = await api.getReports() })
+onMounted(async () => {
+  try {
+    reports.value = await api.getReports()
+  } catch (e) {
+    ElMessage.error('报表列表加载失败: ' + e.message)
+    reports.value = []
+  }
+})
 
 function isLegacy(row) {
   const cfg = row.config_json
@@ -59,8 +66,12 @@ function editReport(id) {
 }
 
 async function executeReport(id) {
-  result.value = await api.executeReport(id)
-  currentChartType.value = 'table'
+  try {
+    result.value = await api.executeReport(id)
+    currentChartType.value = 'table'
+  } catch (e) {
+    ElMessage.warning('画布报表请使用保存后在画布中查看，或使用导出功能')
+  }
 }
 
 function exportReport(id, format = 'excel') {
