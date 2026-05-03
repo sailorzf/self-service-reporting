@@ -538,6 +538,26 @@ async function loadReport(id) {
   if (components.value.length > 0) {
     selectedId.value = components.value[0].id
   }
+
+  // Auto-execute SQL for all components that have a query
+  await executeAllComponentsSql()
+}
+
+async function executeAllComponentsSql() {
+  for (const comp of components.value) {
+    const sql = comp.sql?.trim()
+    if (!sql) continue
+    try {
+      const result = await api.executeComponentSql({ raw_sql: sql })
+      componentData.value[comp.id] = {
+        headers: result.headers,
+        rows: result.rows
+      }
+    } catch (e) {
+      // Silent fail on load - component will show empty
+      console.warn(`[ReportDesigner] SQL execution failed for ${comp.name}:`, e.message)
+    }
+  }
 }
 
 // Init AI session
