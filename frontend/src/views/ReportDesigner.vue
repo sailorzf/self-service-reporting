@@ -466,10 +466,21 @@ async function sendChatMessage() {
     }
     chatMessages.value.push(aiMsg)
 
-    // Auto-fill SQL to selected component
+    // Auto-fill and execute SQL for selected component
     if (res.sql_query && selectedComponent.value) {
       selectedComponent.value.sql = res.sql_query
       sqlExpanded.value = true
+      // Auto-execute to update chart preview
+      try {
+        const result = await api.executeComponentSql({ raw_sql: res.sql_query })
+        componentData.value[selectedComponent.value.id] = {
+          headers: result.headers,
+          rows: result.rows
+        }
+        ElMessage.success('查询已执行，图表已更新')
+      } catch (e) {
+        ElMessage.warning('SQL执行失败: ' + e.message)
+      }
     }
   } catch (e) {
     console.error('[chat] Error:', e)
