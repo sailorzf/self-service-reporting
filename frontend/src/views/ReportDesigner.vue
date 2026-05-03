@@ -53,6 +53,7 @@
         ref="canvasArea"
         class="canvas-area"
         :class="{ 'has-components': components.length > 0 }"
+        :style="{ minWidth: canvasWidth + 'px', minHeight: canvasHeight + 'px' }"
       >
         <!-- Empty state -->
         <div v-if="components.length === 0" class="canvas-empty">
@@ -272,8 +273,22 @@ const loading = ref(false)
 const sqlExpanded = ref(false)
 const reportId = ref(route.params.id ? Number(route.params.id) : null)
 const loadedReportName = ref('')
-const canvasWidth = ref(1200)
-const canvasHeight = ref(800)
+const GRID = 20
+const CANVAS_PADDING = 40
+
+// Computed canvas dimensions (dynamic)
+const canvasWidth = computed(() => {
+  if (components.value.length === 0) return 1200
+  const maxX = Math.max(...components.value.map(c => c.x + c.width))
+  return Math.max(1200, maxX + CANVAS_PADDING)
+})
+
+const canvasHeight = computed(() => {
+  if (components.value.length === 0) return 800
+  const maxY = Math.max(...components.value.map(c => c.y + c.height))
+  return Math.max(800, maxY + CANVAS_PADDING)
+})
+
 const loadedComponents = ref(false)
 
 // Watch for route changes to load different reports
@@ -516,7 +531,7 @@ async function executeComponentSql() {
 // Save report
 async function saveReport() {
   const config = {
-    canvas: { width: 1200, height: 800 },
+    canvas: { width: canvasWidth.value, height: canvasHeight.value },
     components: components.value
   }
   const data = {
@@ -647,10 +662,6 @@ async function loadReport(id) {
   if (config && config.components) {
     // Canvas format: { canvas: {...}, components: [...] }
     components.value = config.components
-    if (config.canvas) {
-      canvasWidth.value = config.canvas.width || 1200
-      canvasHeight.value = config.canvas.height || 800
-    }
   } else if (config && config.columns) {
     // Migrate old format to single table component
     const comp = {
@@ -728,6 +739,12 @@ function initInteractForComponent(comp) {
       allowFrom: '.comp-header-draggable',
       inertia: true,
       modifiers: [
+        interact.modifiers.snap({
+          targets: [
+            interact.createSnapGrid({ x: GRID, y: GRID })
+          ],
+          relativePoints: [{ x: 0, y: 0 }]
+        }),
         interact.modifiers.restrictRect({
           restriction: 'parent',
           endOnly: false
@@ -738,10 +755,8 @@ function initInteractForComponent(comp) {
           selectComponent(comp.id)
         },
         move(event) {
-          comp.x = (comp.x || 0) + event.dx
-          comp.y = (comp.y || 0) + event.dy
-          comp.x = Math.max(0, comp.x)
-          comp.y = Math.max(0, comp.y)
+          comp.x = Math.max(0, Math.round((comp.x || 0) + event.dx) / GRID) * GRID
+          comp.y = Math.max(0, Math.round((comp.y || 0) + event.dy) / GRID) * GRID
         }
       }
     })
@@ -751,14 +766,19 @@ function initInteractForComponent(comp) {
       enabled: () => !comp.locked,
       edges: { right: '.resize-handle-right', bottom: '.resize-handle-bottom' },
       modifiers: [
+        interact.modifiers.snapSize({
+          targets: [
+            interact.createSnapGrid({ x: GRID, y: GRID })
+          ]
+        }),
         interact.modifiers.restrictSize({
           min: { width: 150, height: 80 }
         })
       ],
       listeners: {
         move(event) {
-          comp.width = Math.max(150, event.rect.width)
-          comp.height = Math.max(80, event.rect.height)
+          comp.width = Math.max(150, Math.round(event.rect.width / GRID) * GRID)
+          comp.height = Math.max(80, Math.round(event.rect.height / GRID) * GRID)
         }
       }
     })
@@ -910,13 +930,16 @@ watch(chatMessages, () => {
 }
 
 .canvas-area {
-  min-width: 1200px;
-  min-height: 800px;
   position: relative;
   border: 2px dashed #dcdfe6;
   margin: 16px;
   border-radius: 8px;
-  background: #fff;
+  background-color: #fff;
+  background-image:
+    linear-gradient(to right, #e8e8e8 1px, transparent 1px),
+    linear-gradient(to bottom, #e8e8e8 1px, transparent 1px);
+  background-size: 20px 20px;
+  background-position: 0 0;
 }
 
 .canvas-area.has-components {
