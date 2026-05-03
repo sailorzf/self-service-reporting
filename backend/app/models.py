@@ -40,7 +40,7 @@ class AISession(Base):
     __tablename__ = "ai_sessions"
     id = Column(Integer, primary_key=True, autoincrement=True)
     session_id = Column(String(64), unique=True, nullable=False)
-    data_type_id = Column(Integer, ForeignKey("data_types.id", ondelete="CASCADE"), nullable=False)
+    data_type_id = Column(Integer, ForeignKey("data_types.id", ondelete="CASCADE"), nullable=True)
     user = Column(String(50), default="anonymous")
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
