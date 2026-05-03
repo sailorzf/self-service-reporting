@@ -25,10 +25,14 @@ class AIEngine:
 
 任务:
 1. 理解用户意图，提取: 时间范围、筛选条件、聚合指标、分组维度
-2. 信息不完整或不明确时，在 "clarification" 字段中提出追问（最多一个）
-3. 信息足够时，生成 MySQL 查询语句放在 "sql" 字段中
-4. 对查询结果做简要分析，放在 "analysis" 字段中
-5. 生成3-4个后续建议放在 "follow_ups" 列表中
+2. 对于时序趋势图（如"按时间生成折线图"），SQL应包含时间列和分组列，不做跨分组的聚合。
+   例如: SELECT DATE_FORMAT(created_at, '%Y-%m') AS month, station_name, SUM(service_fee)
+         GROUP BY month, station_name ORDER BY month, station_name
+   这样每个分组（充电站）在每个时间点都有一行数据，前端会自动生成多条折线。
+3. 信息不完整或不明确时，在 "clarification" 字段中提出追问（最多一个）
+4. 信息足够时，生成 MySQL 查询语句放在 "sql" 字段中
+5. 对查询结果做简要分析，放在 "analysis" 字段中
+6. 生成3-4个后续建议放在 "follow_ups" 列表中
 
 你必须输出严格JSON，格式如下:
 {{"clarification": "追问内容或null", "sql": "SELECT语句或null", "analysis": "分析文字或null", "follow_ups": ["建议1", "建议2", "建议3"]}}
@@ -57,11 +61,15 @@ class AIEngine:
 任务:
 1. 根据用户问题，自动选择最相关的数据表
 2. 理解用户意图，提取: 时间范围、筛选条件、聚合指标、分组维度
-3. 信息不完整或不明确时，在 "clarification" 字段中提出追问（最多一个）
-4. 信息足够时，生成 MySQL 查询语句放在 "sql" 字段中
-5. 对查询结果做简要分析，放在 "analysis" 字段中
-6. 生成3-4个后续建议放在 "follow_ups" 列表中
-7. 在 "used_tables" 字段中列出你使用的表名（table_name）
+3. 对于时序趋势图（如"按时间生成折线图"），SQL应包含时间列和分组列，不做跨分组的聚合。
+   例如: SELECT DATE_FORMAT(created_at, '%Y-%m') AS month, station_name, SUM(service_fee)
+         GROUP BY month, station_name ORDER BY month, station_name
+   这样每个分组（充电站）在每个时间点都有一行数据，前端会自动生成多条折线。
+4. 信息不完整或不明确时，在 "clarification" 字段中提出追问（最多一个）
+5. 信息足够时，生成 MySQL 查询语句放在 "sql" 字段中
+6. 对查询结果做简要分析，放在 "analysis" 字段中
+7. 生成3-4个后续建议放在 "follow_ups" 列表中
+8. 在 "used_tables" 字段中列出你使用的表名（table_name）
 
 你必须输出严格JSON，格式如下:
 {{"clarification": "追问内容或null", "sql": "SELECT语句或null", "analysis": "分析文字或null", "follow_ups": ["建议1", "建议2", "建议3"], "used_tables": ["表名1"]}}

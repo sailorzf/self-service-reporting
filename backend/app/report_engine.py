@@ -227,6 +227,75 @@ class DataFormatter:
         if not rows:
             return {"categories": [], "series": []}
 
+        # Detect long format: (time/dimension, group_name, value)
+        # Pivot to wide format: categories = unique first column, series = one per group
+        if len(headers) == 3 and len(rows) > 0:
+            col1, col2, col3 = headers
+            # Check if col3 is numeric and col2 is categorical (not purely numeric)
+            is_col3_numeric = True
+            is_col2_categorical = False
+            for row in rows:
+                v = row[2]
+                if v is not None and not isinstance(v, (int, float)):
+                    try:
+                        float(v)
+                    except (ValueError, TypeError):
+                        is_col3_numeric = False
+                        break
+            if is_col3_numeric:
+                # Check if col2 has non-numeric values (categorical)
+                non_numeric_count = 0
+                for row in rows:
+                    v = row[1]
+                    if not isinstance(v, (int, float)):
+                        non_numeric_count += 1
+                if non_numeric_count > len(rows) * 0.5:
+                    is_col2_categorical = True
+
+            if is_col3_numeric and is_col2_categorical:
+                # Long format detected - pivot to wide format
+                categories_map = {}  # col1 value -> order index
+                category_list = []
+                series_map = {}  # col2 value -> list of values
+                # Preserve order of appearance for categories
+                cat_order = 0
+                for row in rows:
+                    cat_key = str(row[0])
+                    group = str(row[1])
+                    val = row[2]
+                    if val is None:
+                        val = 0
+                    elif isinstance(val, (int, float)):
+                        pass
+                    else:
+                        try:
+                            val = float(val)
+                        except (ValueError, TypeError):
+                            val = 0
+
+                    if cat_key not in categories_map:
+                        categories_map[cat_key] = cat_order
+                        category_list.append(cat_key)
+                        cat_order += 1
+                    if group not in series_map:
+                        series_map[group] = [0] * len(category_list)
+                    idx = categories_map[cat_key]
+                    # Extend series if needed (new category added)
+                    while len(series_map[group]) < len(category_list):
+                        series_map[group].append(0)
+                    series_map[group][idx] = val
+
+                series = []
+                for name, data in series_map.items():
+                    # Pad series to match category_list length
+                    series.append({
+                        "name": name,
+                        "data": data[:len(category_list)]
+                    })
+
+                return {"categories": category_list, "series": series}
+
+        # Wide format: first column = categories, remaining columns = series
         categories = [str(row[0]) for row in rows]
         series = []
         for i, header in enumerate(headers[1:], 1):
