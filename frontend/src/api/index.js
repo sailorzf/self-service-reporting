@@ -51,10 +51,11 @@ export const api = {
   getReports: () => request('/reports/'),
   createReport: (data) => request('/reports/', { method: 'POST', body: JSON.stringify(data) }),
   executeQuery: (data) => request('/reports/execute', { method: 'POST', body: JSON.stringify(data) }),
+  executeComponentSql: (data) => request('/reports/execute', { method: 'POST', body: JSON.stringify(data) }),
   executeReport: (id) => request(`/reports/${id}/execute`, { method: 'POST' }),
   shareReport: (id, days = 7) => request(`/reports/${id}/share?days=${days}`, { method: 'POST' }),
 
-  createAISession: (data) => request('/ai/sessions', { method: 'POST', body: JSON.stringify(data) }),
+  createAISession: (data = {}) => request('/ai/sessions', { method: 'POST', body: JSON.stringify(data) }),
   sendAIMessage: (sessionId, content) =>
     request(`/ai/sessions/${sessionId}/message`, { method: 'POST', body: JSON.stringify({ content }) }),
   getAISession: (sessionId) => request(`/ai/sessions/${sessionId}`),
