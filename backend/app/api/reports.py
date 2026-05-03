@@ -39,9 +39,12 @@ def execute_query(query: QueryExecute, db: Session = Depends(get_db)):
             raise HTTPException(403, "只允许执行SELECT语句")
         if "LIMIT" not in sql.upper():
             sql = f"{sql} LIMIT {getattr(settings, 'max_result_rows', 1000)}"
-        result = db.execute(text(sql))
-        rows = result.fetchall()
-        headers = list(result.keys())
+        try:
+            result = db.execute(text(sql))
+            rows = result.fetchall()
+            headers = list(result.keys())
+        except Exception as e:
+            raise HTTPException(400, f"SQL执行失败: {str(e)}")
         chart_data = DataFormatter.to_chart(headers, rows) if rows else None
         return QueryResult(
             headers=headers,

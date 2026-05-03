@@ -230,13 +230,22 @@ class DataFormatter:
         categories = [str(row[0]) for row in rows]
         series = []
         for i, header in enumerate(headers[1:], 1):
-            series.append({
-                "name": header,
-                "data": [
-                    row[i] if isinstance(row[i], (int, float)) else float(row[i])
-                    for row in rows
-                ],
-            })
+            data = []
+            for row in rows:
+                val = row[i]
+                if val is None:
+                    data.append(0)
+                elif isinstance(val, (int, float)):
+                    data.append(val)
+                else:
+                    try:
+                        data.append(float(val))
+                    except (ValueError, TypeError):
+                        # Skip non-numeric columns (datetime, strings, etc.)
+                        data = None
+                        break
+            if data is not None:
+                series.append({"name": header, "data": data})
 
         return {"categories": categories, "series": series}
 
