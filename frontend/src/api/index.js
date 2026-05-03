@@ -50,6 +50,7 @@ export const api = {
 
   getReports: () => request('/reports/'),
   createReport: (data) => request('/reports/', { method: 'POST', body: JSON.stringify(data) }),
+  updateReport: (id, data) => request(`/reports/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   executeQuery: (data) => request('/reports/execute', { method: 'POST', body: JSON.stringify(data) }),
   executeComponentSql: (data) => request('/reports/execute', { method: 'POST', body: JSON.stringify(data) }),
   executeReport: (id) => request(`/reports/${id}/execute`, { method: 'POST' }),

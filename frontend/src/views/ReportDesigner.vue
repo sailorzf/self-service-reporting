@@ -1,5 +1,27 @@
 <template>
   <div class="designer">
+    <!-- Toolbar -->
+    <div class="designer-toolbar">
+      <div class="toolbar-left">
+        <el-button @click="goBack">返回</el-button>
+        <span v-if="loadedReportName" class="toolbar-report-name">{{ loadedReportName }}</span>
+      </div>
+      <div class="toolbar-right">
+        <el-button type="primary" @click="saveReport" :loading="loading">保存</el-button>
+        <el-dropdown v-if="reportId" @command="handleExport" trigger="click">
+          <el-button>导出<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="excel">Excel</el-dropdown-item>
+              <el-dropdown-item command="html">HTML</el-dropdown-item>
+              <el-dropdown-item command="pdf">PDF</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+        <el-button v-if="reportId" @click="shareCurrentReport">分享</el-button>
+      </div>
+    </div>
+
     <!-- Left Panel: Component Library -->
     <div class="panel-left">
       <h3 class="panel-title">组件库</h3>
@@ -187,6 +209,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { ArrowDown } from '@element-plus/icons-vue'
 import { api } from '../api'
 import CanvasComponent from '../components/CanvasComponent.vue'
 import interact from 'interactjs'
@@ -206,6 +229,7 @@ const chatLoading = ref(false)
 const loading = ref(false)
 const sqlExpanded = ref(false)
 const reportId = ref(route.params.id ? Number(route.params.id) : null)
+const loadedReportName = ref('')
 
 // Refs
 const canvasArea = ref(null)
@@ -329,22 +353,65 @@ async function executeComponentSql() {
 
 // Save report
 async function saveReport() {
-  const name = prompt('报表名称:')
-  if (!name) return
   const config = {
     canvas: { width: 1200, height: 800 },
     components: components.value
   }
-  // Use first available data_type_id for backward compatibility
-  let dataTypeId = dataTypes.value.length > 0 ? dataTypes.value[0].id : null
+  const data = {
+    name: loadedReportName.value || '未命名报表',
+    data_type_id: null,
+    config_json: config
+  }
+
   loading.value = true
   try {
-    await api.createReport({ name, data_type_id: dataTypeId, config_json: config })
-    ElMessage.success('报表已保存')
+    if (reportId.value) {
+      await api.updateReport(reportId.value, data)
+      ElMessage.success('报表已更新')
+    } else {
+      const name = prompt('报表名称:')
+      if (!name) return
+      data.name = name
+      const res = await api.createReport(data)
+      ElMessage.success('报表已保存')
+      router.replace(`/reports/${res.id}`)
+      reportId.value = res.id
+      loadedReportName.value = res.name
+    }
   } catch (e) {
     ElMessage.error('保存失败: ' + e.message)
   } finally {
     loading.value = false
+  }
+}
+
+function goBack() {
+  router.push('/reports')
+}
+
+function handleExport(format) {
+  if (!reportId.value) {
+    ElMessage.warning('请先保存报表')
+    return
+  }
+  const url = `/api/reports/${reportId.value}/export`
+  if (format === 'excel') {
+    window.open(url, '_blank')
+  } else if (format === 'html') {
+    window.open(`${url}/html`, '_blank')
+  } else if (format === 'pdf') {
+    window.open(`${url}/html`, '_blank')
+  }
+}
+
+async function shareCurrentReport() {
+  const res = await api.shareReport(reportId.value)
+  const fullUrl = `${window.location.origin}${res.share_url}`
+  try {
+    await navigator.clipboard.writeText(fullUrl)
+    ElMessage.success('分享链接已复制到剪贴板')
+  } catch {
+    ElMessage.success(`分享链接: ${fullUrl}`)
   }
 }
 
@@ -402,6 +469,7 @@ async function loadReport(id) {
     ElMessage.error('报表不存在')
     return
   }
+  loadedReportName.value = report.name
   const config = report.config_json
   if (config && config.canvas && config.canvas.components) {
     components.value = config.canvas.components
@@ -549,9 +617,28 @@ watch(chatMessages, () => {
 <style scoped>
 .designer {
   display: flex;
+  flex-direction: column;
   height: 100vh;
   overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Toolbar */
+.designer-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: #fff;
+  border-bottom: 1px solid #e4e7ed;
+  min-height: 48px;
+}
+.toolbar-left, .toolbar-right { display: flex; align-items: center; gap: 8px; }
+.toolbar-report-name { font-size: 14px; font-weight: bold; color: #333; padding: 0 12px; }
+
+/* Main content below toolbar */
+.panel-left, .panel-canvas, .panel-right {
+  /* existing styles unchanged */
 }
 
 /* Left Panel */

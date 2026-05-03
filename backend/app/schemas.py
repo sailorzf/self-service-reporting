@@ -63,14 +63,14 @@ class ReportConfig(BaseModel):
 
 class ReportCreate(BaseModel):
     name: str
-    data_type_id: int
-    config_json: ReportConfig
+    data_type_id: Optional[int] = None
+    config_json: Optional[Any] = None
 
 class ReportResponse(BaseModel):
     id: int
     name: str
-    data_type_id: int
-    config_json: dict[str, Any]
+    data_type_id: Optional[int] = None
+    config_json: Optional[dict[str, Any]] = None
     shared_token: Optional[str] = None
     token_expires: Optional[datetime] = None
     created_at: Optional[datetime] = None

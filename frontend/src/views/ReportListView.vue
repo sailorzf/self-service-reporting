@@ -12,12 +12,21 @@
         </template>
       </el-table-column>
       <el-table-column prop="created_at" label="创建时间" />
-      <el-table-column label="操作" width="250">
+      <el-table-column label="操作" width="280">
         <template #default="{ row }">
           <el-button size="small" @click="editReport(row.id)">编辑</el-button>
           <el-button size="small" @click="executeReport(row.id)">执行</el-button>
           <el-button size="small" @click="shareReport(row.id)">分享</el-button>
-          <el-button size="small" @click="exportReport(row.id)">导出</el-button>
+          <el-dropdown @command="(cmd) => exportReport(row.id, cmd)">
+            <el-button size="small">导出<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="excel">Excel</el-dropdown-item>
+                <el-dropdown-item command="html">HTML</el-dropdown-item>
+                <el-dropdown-item command="pdf">PDF</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </template>
       </el-table-column>
     </el-table>
@@ -29,6 +38,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { ArrowDown } from '@element-plus/icons-vue'
 import { api } from '../api'
 import ReportPreview from '../components/ReportPreview.vue'
 
@@ -52,6 +62,26 @@ async function executeReport(id) {
   result.value = await api.executeReport(id)
   currentChartType.value = 'table'
 }
-async function shareReport(id) { const res = await api.shareReport(id); ElMessage.success(`分享链接: ${res.share_url}`) }
-async function exportReport(id) { window.open(`/api/reports/${id}/export`) }
+
+function exportReport(id, format = 'excel') {
+  const url = `/api/reports/${id}/export`
+  if (format === 'excel') {
+    window.open(url, '_blank')
+  } else if (format === 'html') {
+    window.open(`${url}/html`, '_blank')
+  } else if (format === 'pdf') {
+    window.open(`${url}/html`, '_blank')
+  }
+}
+
+async function shareReport(id) {
+  const res = await api.shareReport(id)
+  const fullUrl = `${window.location.origin}${res.share_url}`
+  try {
+    await navigator.clipboard.writeText(fullUrl)
+    ElMessage.success('分享链接已复制到剪贴板')
+  } catch {
+    ElMessage.success(`分享链接: ${fullUrl}`)
+  }
+}
 </script>

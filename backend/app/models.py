@@ -15,7 +15,7 @@ class Report(Base):
     __tablename__ = "reports"
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(255), nullable=False)
-    data_type_id = Column(Integer, ForeignKey("data_types.id", ondelete="CASCADE"), nullable=False)
+    data_type_id = Column(Integer, ForeignKey("data_types.id", ondelete="CASCADE"), nullable=True)
     config_json = Column(JSON, nullable=False)
     shared_token = Column(String(64), nullable=True)
     token_expires = Column(DateTime, nullable=True)
