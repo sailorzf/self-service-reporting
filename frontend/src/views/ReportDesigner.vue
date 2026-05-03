@@ -22,8 +22,10 @@
       </div>
     </div>
 
-    <!-- Left Panel: Component Library -->
-    <div class="panel-left">
+    <!-- Main body: Left Panel, Canvas, Right Panel -->
+    <div class="designer-body">
+      <!-- Left Panel: Component Library -->
+      <div class="panel-left">
       <h3 class="panel-title">组件库</h3>
       <div class="component-grid">
         <div
@@ -201,7 +203,10 @@
         </div>
       </div>
     </div>
+    <!-- end designer-body -->
   </div>
+  <!-- end designer -->
+</div>
 </template>
 
 <script setup>
@@ -637,11 +642,13 @@ watch(chatMessages, () => {
 .toolbar-report-name { font-size: 14px; font-weight: bold; color: #333; padding: 0 12px; }
 
 /* Main content below toolbar */
-.panel-left, .panel-canvas, .panel-right {
-  /* existing styles unchanged */
+.designer-body {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  overflow: hidden;
 }
 
-/* Left Panel */
 .panel-left {
   width: 220px;
   min-width: 220px;
