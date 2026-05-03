@@ -1,4 +1,6 @@
 import uuid
+from datetime import datetime
+from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -7,6 +9,22 @@ from app.schemas import AIResponse, AIMessageRequest, AISessionCreate
 from app.ai_engine import AIEngine
 
 router = APIRouter()
+
+def _serialize_preview(obj):
+    """Convert datetime/Decimal objects to JSON-safe values."""
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    if isinstance(obj, Decimal):
+        return float(obj)
+    return obj
+
+def serialize_result_preview(data):
+    if data is None:
+        return None
+    return {
+        "headers": data.get("headers", []),
+        "rows": [[_serialize_preview(v) for v in row] for row in data.get("rows", [])]
+    }
 
 @router.post("/sessions")
 def create_session(req: AISessionCreate, db: Session = Depends(get_db)):
@@ -60,13 +78,13 @@ def send_message(session_id: str, req: AIMessageRequest, db: Session = Depends(g
         except Exception as e:
             result["analysis"] = f"SQL执行出错: {e}"
     assistant_content = result.get("analysis") or result.get("clarification") or "好的，已收到你的问题。"
-    assistant_msg = AIMessage(session_id=session_id, role="assistant", content=assistant_content, sql_query=sql_text, result_preview=query_result)
+    assistant_msg = AIMessage(session_id=session_id, role="assistant", content=assistant_content, sql_query=sql_text, result_preview=serialize_result_preview(query_result))
     db.add(assistant_msg)
     db.commit()
     return AIResponse(
         text=assistant_content,
         sql_query=sql_text,
-        result_preview=query_result,
+        result_preview=serialize_result_preview(query_result),
         follow_ups=result.get("follow_ups", []),
         used_tables=result.get("used_tables", [])
     )
