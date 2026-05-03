@@ -492,9 +492,11 @@ function deleteComponent(compId) {
 }
 
 const overlapId = ref(null) // ID of component currently showing overlap warning
+const OVERLAP_MARGIN = 4 // tolerance before collision fires
 
 function rectsOverlap(a, b) {
-  return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y
+  return a.x < b.x + b.width - OVERLAP_MARGIN && a.x + a.width - OVERLAP_MARGIN > b.x
+    && a.y < b.y + b.height - OVERLAP_MARGIN && a.y + a.height - OVERLAP_MARGIN > b.y
 }
 
 function checkOverlap(compId, x, y, w, h) {
@@ -778,17 +780,14 @@ function initInteractForComponent(comp) {
         move(event) {
           const nx = Math.max(0, Math.round((lastValid.x + event.delta.x) / GRID) * GRID)
           const ny = Math.max(0, Math.round((lastValid.y + event.delta.y) / GRID) * GRID)
+          comp.x = nx
+          comp.y = ny
           const ov = checkOverlap(comp.id, nx, ny, comp.width, comp.height)
-          if (ov) {
-            overlapId.value = comp.id
-          } else {
-            overlapId.value = null
-            comp.x = nx
-            comp.y = ny
-          }
+          overlapId.value = ov ? comp.id : null
         },
         end() {
-          if (overlapId.value === comp.id) {
+          const ov = checkOverlap(comp.id, comp.x, comp.y, comp.width, comp.height)
+          if (ov) {
             comp.x = lastValid.x
             comp.y = lastValid.y
             ElMessage.warning('组件不能重叠')
@@ -819,19 +818,16 @@ function initInteractForComponent(comp) {
           overlapId.value = null
         },
         move(event) {
-          const nw = Math.max(150, Math.round(event.rect.width / GRID) * GRID)
-          const nh = Math.max(80, Math.round(event.rect.height / GRID) * GRID)
+          const nw = Math.max(150, Math.round((lastValid.width + event.delta.x) / GRID) * GRID)
+          const nh = Math.max(80, Math.round((lastValid.height + event.delta.y) / GRID) * GRID)
+          comp.width = nw
+          comp.height = nh
           const ov = checkOverlap(comp.id, comp.x, comp.y, nw, nh)
-          if (ov) {
-            overlapId.value = comp.id
-          } else {
-            overlapId.value = null
-            comp.width = nw
-            comp.height = nh
-          }
+          overlapId.value = ov ? comp.id : null
         },
         end() {
-          if (overlapId.value === comp.id) {
+          const ov = checkOverlap(comp.id, comp.x, comp.y, comp.width, comp.height)
+          if (ov) {
             comp.width = lastValid.width
             comp.height = lastValid.height
             ElMessage.warning('组件不能重叠')

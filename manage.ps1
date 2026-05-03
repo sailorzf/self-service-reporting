@@ -101,7 +101,7 @@ function Start-Backend {
         Write-Host "  Backend already running on port $BackendPort" -ForegroundColor Yellow
         return $true
     }
-    $PythonPath = "$PSScriptRoot\..\..\backend\.venv\Scripts\python.exe"
+    $PythonPath = "$PSScriptRoot\backend\.venv\Scripts\python.exe"
     $job = Start-Process -FilePath $PythonPath -ArgumentList '-m', 'uvicorn', 'app.main:app', '--reload', '--host', '0.0.0.0', '--port', $BackendPort.ToString() -WindowStyle Hidden -PassThru -WorkingDirectory $BackendDir
     Write-Host "  Backend PID: $($job.Id)" -ForegroundColor Green
     Write-Host "  Waiting for backend..." -NoNewline
