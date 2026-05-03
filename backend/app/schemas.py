@@ -79,7 +79,8 @@ class ReportResponse(BaseModel):
 
 class QueryExecute(BaseModel):
     data_type_id: Optional[int] = None
-    config: ReportConfig
+    config: Optional[ReportConfig] = None
+    raw_sql: Optional[str] = None
     override_filters: list[FilterSpec] = []
 
 class QueryResult(BaseModel):
@@ -95,9 +96,10 @@ class AIResponse(BaseModel):
     sql_query: Optional[str] = None
     result_preview: Optional[dict[str, Any]] = None
     follow_ups: list[str] = []
+    used_tables: list[str] = []
 
 class AISessionCreate(BaseModel):
-    data_type_id: int
+    data_type_id: Optional[int] = None
     session_id: Optional[str] = None
 
 class ImportRecordResponse(BaseModel):
@@ -113,3 +115,25 @@ class ImportRecordResponse(BaseModel):
     uploaded_by: str
     class Config:
         from_attributes = True
+
+class CanvasComponent(BaseModel):
+    id: str
+    type: str  # "text" | "kpi" | "table" | "bar" | "line" | "pie"
+    name: str = ""
+    x: int = 16
+    y: int = 16
+    width: int = 260
+    height: int = 180
+    data_type_id: Optional[int] = None
+    sql: str = ""
+    chart_type: str = "table"
+    theme_color: str = "#409eff"
+    content: str = ""
+
+class CanvasConfig(BaseModel):
+    width: int = 1200
+    height: int = 800
+
+class ReportConfigCanvas(BaseModel):
+    canvas: CanvasConfig = CanvasConfig()
+    components: list[CanvasComponent] = []

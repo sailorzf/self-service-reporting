@@ -29,8 +29,29 @@ def list_reports(db: Session = Depends(get_db)):
 
 @router.post("/execute", response_model=QueryResult)
 def execute_query(query: QueryExecute, db: Session = Depends(get_db)):
+    from sqlalchemy import text
+    from app.config import settings
+
+    # Raw SQL path
+    if query.raw_sql:
+        sql = query.raw_sql.strip().rstrip(';')
+        if not sql.upper().startswith("SELECT"):
+            raise HTTPException(403, "只允许执行SELECT语句")
+        if "LIMIT" not in sql.upper():
+            sql = f"{sql} LIMIT {getattr(settings, 'max_result_rows', 1000)}"
+        result = db.execute(text(sql))
+        rows = result.fetchall()
+        headers = list(result.keys())
+        chart_data = DataFormatter.to_chart(rows, headers) if rows else None
+        return QueryResult(
+            headers=headers,
+            rows=[list(r) for r in rows],
+            chart_data=chart_data
+        )
+
+    # Existing logic
     engine = ReportEngine(db)
-    if query.config.tables and len(query.config.tables) > 1:
+    if query.config and query.config.tables and len(query.config.tables) > 1:
         table_map = {}
         for t in query.config.tables:
             dt = db.query(DataType).filter(DataType.id == t.data_type_id).first()
@@ -38,12 +59,12 @@ def execute_query(query: QueryExecute, db: Session = Depends(get_db)):
                 raise HTTPException(404, f"数据表 {t.data_type_id} 不存在")
             table_map[t.alias] = dt.table_name
         return engine.execute_multi(query.config, table_map)
-    if query.data_type_id:
+    if query.data_type_id and query.config:
         dt = db.query(DataType).filter(DataType.id == query.data_type_id).first()
         if not dt:
             raise HTTPException(404, "数据表不存在")
         return engine.execute(query.config, dt.table_name)
-    raise HTTPException(400, "需要指定data_type_id或tables")
+    raise HTTPException(400, "需要指定data_type_id、tables或raw_sql")
 
 @router.post("/{report_id}/execute", response_model=QueryResult)
 def execute_report(report_id: int, db: Session = Depends(get_db)):
