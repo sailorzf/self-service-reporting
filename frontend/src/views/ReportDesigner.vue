@@ -66,7 +66,7 @@
           :key="comp.id"
           :ref="el => componentRefs[comp.id] = el"
           class="canvas-item"
-          :class="{ selected: comp.id === selectedId, locked: comp.locked }"
+          :class="{ selected: comp.id === selectedId, locked: comp.locked, overlap: overlapId === comp.id }"
           :style="{
             transform: `translate(${comp.x}px, ${comp.y}px)`,
             width: comp.width + 'px',
@@ -387,16 +387,18 @@ function onDrop(event) {
   if (!type) return
 
   const rect = canvasArea.value.getBoundingClientRect()
-  const x = event.clientX - rect.left + canvasArea.value.scrollLeft
-  const y = event.clientY - rect.top + canvasArea.value.scrollTop
-
   const dims = defaultDimensions(type)
+  let x = Math.round((event.clientX - rect.left + canvasArea.value.scrollLeft - dims.width / 2) / GRID) * GRID
+  let y = Math.round((event.clientY - rect.top + canvasArea.value.scrollTop - dims.height / 2) / GRID) * GRID
+  x = Math.max(0, x)
+  y = Math.max(0, y)
+
   const comp = {
     id: genId(),
     type,
     name: typeLabel(type),
-    x: Math.max(0, x - dims.width / 2),
-    y: Math.max(0, y - dims.height / 2),
+    x,
+    y,
     width: dims.width,
     height: dims.height,
     data_type_id: null,
@@ -487,6 +489,21 @@ function deleteComponent(compId) {
   components.value = components.value.filter(c => c.id !== compId)
   delete componentData.value[compId]
   if (selectedId.value === compId) selectedId.value = null
+}
+
+const overlapId = ref(null) // ID of component currently showing overlap warning
+
+function rectsOverlap(a, b) {
+  return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y
+}
+
+function checkOverlap(compId, x, y, w, h) {
+  const a = { x, y, width: w, height: h }
+  for (const c of components.value) {
+    if (c.id === compId) continue
+    if (rectsOverlap(a, c)) return c.id
+  }
+  return null
 }
 
 function showContextMenu(compId, event) {
@@ -732,6 +749,7 @@ function initInteractForComponent(comp) {
     if (!el) return
 
     const interactInstance = interact(el)
+    const lastValid = { x: comp.x, y: comp.y, width: comp.width, height: comp.height }
 
     // Draggable - only start from header
     interactInstance.draggable({
@@ -753,10 +771,29 @@ function initInteractForComponent(comp) {
       listeners: {
         start() {
           selectComponent(comp.id)
+          lastValid.x = comp.x
+          lastValid.y = comp.y
+          overlapId.value = null
         },
         move(event) {
-          comp.x = Math.max(0, Math.round((comp.x || 0) + event.dx) / GRID) * GRID
-          comp.y = Math.max(0, Math.round((comp.y || 0) + event.dy) / GRID) * GRID
+          const nx = Math.max(0, Math.round((lastValid.x + event.delta.x) / GRID) * GRID)
+          const ny = Math.max(0, Math.round((lastValid.y + event.delta.y) / GRID) * GRID)
+          const ov = checkOverlap(comp.id, nx, ny, comp.width, comp.height)
+          if (ov) {
+            overlapId.value = comp.id
+          } else {
+            overlapId.value = null
+            comp.x = nx
+            comp.y = ny
+          }
+        },
+        end() {
+          if (overlapId.value === comp.id) {
+            comp.x = lastValid.x
+            comp.y = lastValid.y
+            ElMessage.warning('组件不能重叠')
+          }
+          overlapId.value = null
         }
       }
     })
@@ -776,9 +813,30 @@ function initInteractForComponent(comp) {
         })
       ],
       listeners: {
+        start() {
+          lastValid.width = comp.width
+          lastValid.height = comp.height
+          overlapId.value = null
+        },
         move(event) {
-          comp.width = Math.max(150, Math.round(event.rect.width / GRID) * GRID)
-          comp.height = Math.max(80, Math.round(event.rect.height / GRID) * GRID)
+          const nw = Math.max(150, Math.round(event.rect.width / GRID) * GRID)
+          const nh = Math.max(80, Math.round(event.rect.height / GRID) * GRID)
+          const ov = checkOverlap(comp.id, comp.x, comp.y, nw, nh)
+          if (ov) {
+            overlapId.value = comp.id
+          } else {
+            overlapId.value = null
+            comp.width = nw
+            comp.height = nh
+          }
+        },
+        end() {
+          if (overlapId.value === comp.id) {
+            comp.width = lastValid.width
+            comp.height = lastValid.height
+            ElMessage.warning('组件不能重叠')
+          }
+          overlapId.value = null
         }
       }
     })
@@ -970,6 +1028,11 @@ watch(chatMessages, () => {
 
 .canvas-item.locked {
   cursor: default;
+}
+
+.canvas-item.overlap .canvas-component {
+  border-color: #f56c6c !important;
+  box-shadow: 0 0 0 2px rgba(245, 108, 108, 0.3) !important;
 }
 
 .resize-handle {
