@@ -82,10 +82,16 @@
             :selected="comp.id === selectedId"
             @action="handleCompAction"
           />
-          <!-- Resize handles (4 edges) -->
+          <!-- Resize handles (4 edges + 4 corners) -->
           <template v-if="comp.id === selectedId && !comp.locked">
+            <div class="resize-handle resize-handle-left"></div>
             <div class="resize-handle resize-handle-right"></div>
+            <div class="resize-handle resize-handle-top"></div>
             <div class="resize-handle resize-handle-bottom"></div>
+            <div class="resize-handle resize-handle-corner resize-handle-corner-tl"></div>
+            <div class="resize-handle resize-handle-corner resize-handle-corner-tr"></div>
+            <div class="resize-handle resize-handle-corner resize-handle-corner-bl"></div>
+            <div class="resize-handle resize-handle-corner resize-handle-corner-br"></div>
           </template>
         </div>
       </div>
@@ -757,17 +763,10 @@ function initInteractForComponent(comp) {
     interactInstance.draggable({
       enabled: () => !comp.locked,
       allowFrom: '.comp-header-draggable',
-      inertia: true,
       modifiers: [
-        interact.modifiers.snap({
-          targets: [
-            interact.createSnapGrid({ x: GRID, y: GRID })
-          ],
-          relativePoints: [{ x: 0, y: 0 }]
-        }),
         interact.modifiers.restrictRect({
           restriction: 'parent',
-          endOnly: false
+          endOnly: true
         })
       ],
       listeners: {
@@ -778,14 +777,16 @@ function initInteractForComponent(comp) {
           overlapId.value = null
         },
         move(event) {
-          const nx = Math.max(0, Math.round((lastValid.x + event.delta.x) / GRID) * GRID)
-          const ny = Math.max(0, Math.round((lastValid.y + event.delta.y) / GRID) * GRID)
+          const nx = Math.max(0, Math.round(event.pageX - event.rect.left))
+          const ny = Math.max(0, Math.round(event.pageY - event.rect.top))
           comp.x = nx
           comp.y = ny
           const ov = checkOverlap(comp.id, nx, ny, comp.width, comp.height)
           overlapId.value = ov ? comp.id : null
         },
         end() {
+          comp.x = Math.round(comp.x / GRID) * GRID
+          comp.y = Math.round(comp.y / GRID) * GRID
           const ov = checkOverlap(comp.id, comp.x, comp.y, comp.width, comp.height)
           if (ov) {
             comp.x = lastValid.x
@@ -797,18 +798,25 @@ function initInteractForComponent(comp) {
       }
     })
 
-    // Resizable - right and bottom edges
+    // Resizable - four edges
     interactInstance.resizable({
       enabled: () => !comp.locked,
-      edges: { right: '.resize-handle-right', bottom: '.resize-handle-bottom' },
+      edges: {
+        left: '.resize-handle-left',
+        right: '.resize-handle-right',
+        top: '.resize-handle-top',
+        bottom: '.resize-handle-bottom'
+      },
       modifiers: [
         interact.modifiers.snapSize({
           targets: [
             interact.createSnapGrid({ x: GRID, y: GRID })
-          ]
+          ],
+          endOnly: true
         }),
         interact.modifiers.restrictSize({
-          min: { width: 150, height: 80 }
+          min: { width: 150, height: 80 },
+          endOnly: true
         })
       ],
       listeners: {
@@ -818,8 +826,8 @@ function initInteractForComponent(comp) {
           overlapId.value = null
         },
         move(event) {
-          const nw = Math.max(150, Math.round((lastValid.width + event.delta.x) / GRID) * GRID)
-          const nh = Math.max(80, Math.round((lastValid.height + event.delta.y) / GRID) * GRID)
+          const nw = Math.max(150, Math.round(event.rect.width / GRID) * GRID)
+          const nh = Math.max(80, Math.round(event.rect.height / GRID) * GRID)
           comp.width = nw
           comp.height = nh
           const ov = checkOverlap(comp.id, comp.x, comp.y, nw, nh)
@@ -1036,23 +1044,23 @@ watch(chatMessages, () => {
   z-index: 20;
 }
 
-.resize-handle-right {
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 6px;
-  cursor: ew-resize;
-}
+.resize-handle-right { right: 0; top: 0; bottom: 0; width: 8px; cursor: ew-resize; }
+.resize-handle-left   { left: 0; top: 0; bottom: 0; width: 8px; cursor: ew-resize; }
+.resize-handle-bottom { bottom: 0; left: 0; right: 0; height: 8px; cursor: ns-resize; }
+.resize-handle-top    { top: 0; left: 0; right: 0; height: 8px; cursor: ns-resize; }
 
-.resize-handle-bottom {
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 6px;
-  cursor: ns-resize;
+.resize-handle-corner {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  z-index: 25;
 }
+.resize-handle-corner-br { right: 0; bottom: 0; cursor: nwse-resize; }
+.resize-handle-corner-bl { left: 0; bottom: 0; cursor: nesw-resize; }
+.resize-handle-corner-tr { right: 0; top: 0; cursor: nesw-resize; }
+.resize-handle-corner-tl { left: 0; top: 0; cursor: nwse-resize; }
 
-.resize-handle-bottom::after {
+.resize-handle-corner-br::after {
   content: '';
   position: absolute;
   bottom: 2px;
