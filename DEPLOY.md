@@ -192,7 +192,265 @@ gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8100
 - 对 `ai_sessions` 和 `ai_messages` 表做定期清理，避免无限增长
 - 为 `data_types.code`、`reports.shared_token` 等字段确保索引
 
-## 6. 故障排查
+## 7. Linux 服务器部署
+
+### 7.1 环境准备
+
+**Ubuntu / Debian：**
+
+```bash
+sudo apt update
+sudo apt install -y python3.12 python3.12-venv python3-pip mysql-server nginx nodejs npm
+```
+
+**CentOS / RHEL：**
+
+```bash
+sudo yum install -y python39 python39-devel mysql-server nginx
+# Node.js 18+
+curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash -
+sudo yum install -y nodejs
+```
+
+### 7.2 部署项目
+
+```bash
+# 克隆项目
+git clone git@github.com:sailorzf/self-service-reporting.git
+cd self-service-reporting
+
+# 或在服务器上直接上传代码后
+cd /opt/self-service-reporting
+```
+
+### 7.3 后端部署
+
+```bash
+cd backend
+
+# 创建虚拟环境
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# 创建 .env 配置文件
+cat > .env << 'EOF'
+database_url=mysql+pymysql://report_user:your_password@localhost:3306/report_db
+dashscope_api_key=your-dashscope-api-key
+dashscope_base_url=https://dashscope.aliyuncs.com/compatible-mode/v1
+dashscope_model=qwen3.6-plus
+max_joins=3
+sql_timeout=5
+max_result_rows=1000
+EOF
+```
+
+**配置 systemd 服务：**
+
+```bash
+sudo tee /etc/systemd/system/report-backend.service > /dev/null << 'EOF'
+[Unit]
+Description=Self-Service Report Backend
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/self-service-reporting/backend
+Environment=PATH=/opt/self-service-reporting/backend/.venv/bin
+ExecStart=/opt/self-service-reporting/backend/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8100 --workers 4
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable report-backend
+sudo systemctl start report-backend
+```
+
+### 7.4 前端构建
+
+```bash
+cd frontend
+
+# 安装依赖
+npm install
+
+# 生产构建
+npm run build
+```
+
+构建产物输出到 `frontend/dist/`。
+
+### 7.5 Nginx 配置
+
+```bash
+sudo tee /etc/nginx/sites-available/report > /dev/null << 'EOF'
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    # 前端静态文件
+    root /opt/self-service-reporting/frontend/dist;
+    index index.html;
+
+    # SPA 路由
+    location / {
+        try_files $uri $uri/ /index.html;
+        # 静态资源缓存
+        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff2)$ {
+            expires 30d;
+            add_header Cache-Control "public, immutable";
+        }
+    }
+
+    # 反向代理到后端 API
+    location /api/ {
+        proxy_pass http://127.0.0.1:8100;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # WebSocket 支持（如需要）
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+EOF
+
+sudo ln -s /etc/nginx/sites-available/report /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+### 7.6 HTTPS（Let's Encrypt）
+
+```bash
+sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d your-domain.com
+```
+
+### 7.7 Linux 服务管理脚本
+
+在 `manage.sh` 中提供与 `manage.ps1` 等效的 Linux 管理功能：
+
+```bash
+cat > manage.sh << 'SCRIPT'
+#!/usr/bin/env bash
+set -e
+
+BACKEND_PORT=8100
+FRONTEND_PORT=3000
+PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
+BACKEND_DIR="$PROJECT_DIR/backend"
+FRONTEND_DIR="$PROJECT_DIR/frontend"
+
+kill_port() {
+    local pid=$(lsof -ti:$1 2>/dev/null)
+    if [ -n "$pid" ]; then
+        echo "  Killing PID $pid on port $1"
+        kill $pid 2>/dev/null || kill -9 $pid 2>/dev/null
+        sleep 1
+    fi
+}
+
+start_backend() {
+    echo "=== Starting backend (port $BACKEND_PORT) ==="
+    cd "$BACKEND_DIR"
+    source .venv/bin/activate
+    nohup uvicorn app.main:app --host 0.0.0.0 --port $BACKEND_PORT > /tmp/report-backend.log 2>&1 &
+    local pid=$!
+    echo "  Backend PID: $pid"
+    echo -n "  Waiting for backend..."
+    for i in $(seq 1 40); do
+        if curl -s http://127.0.0.1:$BACKEND_PORT/api/health | grep -q ok; then
+            echo " OK"; return 0
+        fi
+        sleep 1
+        echo -n "."
+    done
+    echo " TIMEOUT"; return 1
+}
+
+start_frontend() {
+    echo "=== Starting frontend (port $FRONTEND_PORT) ==="
+    cd "$FRONTEND_DIR"
+    nohup npx vite --host 0.0.0.0 --port $FRONTEND_PORT > /tmp/report-frontend.log 2>&1 &
+    local pid=$!
+    echo "  Frontend PID: $pid"
+    echo -n "  Waiting for frontend..."
+    for i in $(seq 1 40); do
+        if curl -s http://localhost:$FRONTEND_PORT > /dev/null 2>&1; then
+            echo " OK"; return 0
+        fi
+        sleep 1
+        echo -n "."
+    done
+    echo " TIMEOUT"; return 1
+}
+
+stop_services() {
+    echo "=== Stopping services ==="
+    kill_port $BACKEND_PORT
+    kill_port $FRONTEND_PORT
+    echo "All services stopped."
+}
+
+case "${1:-help}" in
+    start)          start_backend && start_frontend ;;
+    stop)           stop_services ;;
+    restart)        stop_services; sleep 2; start_backend && start_frontend ;;
+    status)         lsof -i:$BACKEND_PORT 2>/dev/null && echo "  Backend: Running" || echo "  Backend: Stopped"
+                    lsof -i:$FRONTEND_PORT 2>/dev/null && echo "  Frontend: Running" || echo "  Frontend: Stopped" ;;
+    backend-start)  start_backend ;;
+    frontend-start) start_frontend ;;
+    *)              echo "Usage: ./manage.sh {start|stop|restart|status|backend-start|frontend-start}" ;;
+esac
+SCRIPT
+
+chmod +x manage.sh
+```
+
+使用方式：
+
+```bash
+./manage.sh start           # 启动前后端
+./manage.sh stop            # 停止前后端
+./manage.sh restart         # 重启前后端
+./manage.sh status          # 查看状态
+```
+
+### 7.8 日志查看
+
+```bash
+# 后端日志
+tail -f /tmp/report-backend.log
+# 或使用 journalctl（如果使用 systemd）
+sudo journalctl -u report-backend -f
+
+# 前端日志
+tail -f /tmp/report-frontend.log
+
+# Nginx 日志
+tail -f /var/log/nginx/access.log
+tail -f /var/log/nginx/error.log
+```
+
+### 7.9 数据库备份
+
+```bash
+# 手动备份
+mysqldump -u root -p report_db > /backup/report_db_$(date +%Y%m%d_%H%M%S).sql
+
+# 定时备份（crontab）
+echo "0 2 * * * mysqldump -u root -pyour_password report_db | gzip > /backup/report_db_\$(date +\%Y\%m\%d).sql.gz" | crontab -
+```
+
+## 8. 故障排查
 
 ### 后端无法连接数据库
 
@@ -214,7 +472,7 @@ gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8100
 
 ### 端口被占用
 
-`manage.ps1` 脚本会自动清理占用端口的进程。如果手动启动时遇到端口占用：
+**Windows（PowerShell）：**
 
 ```powershell
 # 查看占用端口的进程
@@ -223,4 +481,15 @@ netstat -ano | findstr :3000   # 前端
 
 # 终止对应进程
 taskkill /F /PID <PID>
+```
+
+**Linux：**
+
+```bash
+# 查看占用端口的进程
+sudo lsof -i:8100    # 后端
+sudo lsof -i:3000    # 前端
+
+# 终止对应进程
+sudo kill -9 <PID>
 ```
